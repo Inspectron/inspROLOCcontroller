@@ -34,31 +34,89 @@ namespace {
 
 }
 
-ROLOCcontroller* ROLOCcontroller::theROLOCcontroller;
-
+/**
+ * @brief ROLOCcontroller::ROLOCcontroller - ctor. construct any objects
+ */
 ROLOCcontroller::ROLOCcontroller()
 {
-    if(theROLOCcontroller == NULL)
-    {
-        theROLOCcontroller = this;
-    }
 }
 
-void ROLOCcontroller::init(int argc, char *argv[])
+/**
+ * @brief ROLOCcontroller::~ROLOCcontroller - dtor. destroy any created objects
+ */
+ROLOCcontroller::~ROLOCcontroller()
+{
+
+}
+
+/**
+ * @brief ROLOCcontroller::init - init the class
+ * @param argc
+ * @param argv
+ */
+void ROLOCcontroller::init(int argc, char *argv[]) // TODO are these being used ?
 {
     m_i2cBus.i2c_setDevice(1);  // todo:: look up the correct bus
     mI2cAddr = (0xFA >> 1);
 
-    theROLOCcontroller->mHardwarePresent = false;
-    theROLOCcontroller->m_mode = LINEFINDER_MODE_GET_SIGNAL_STRENGTH;
-    theROLOCcontroller->mFrequency = PARAM_LF_FREQ_512HZ_SONDE; //todo:: over-ride with setting in UI if UI setting is "sticky"
+    mHardwarePresent = false; // TODO you should convert this to a bool instead of quint8
+    m_mode = LINEFINDER_MODE_GET_SIGNAL_STRENGTH;
+    mFrequency = PARAM_LF_FREQ_512HZ_SONDE; //todo:: over-ride with setting in UI if UI setting is "sticky"
 }
 
+void ROLOCcontroller::start()
+{
+    // TODO start the timer
+}
+
+void ROLOCcontroller::stop()
+{
+    // TODO stop the timer
+}
+
+/**
+ * @brief ROLOCcontroller::getSignalStrength - slot callback to get the signal strength
+ */
+void ROLOCcontroller::getSignalStrength()
+{
+    // TODO implement
+}
+
+/**
+ * @brief ROLOCcontroller::getDepthMeasurement - slot callback to get the depth measurement
+ */
+void ROLOCcontroller::getDepthMeasurement()
+{
+    // TODO implement
+}
+
+/**
+ * @brief ROLOCcontroller::getStatus - slot callback to get the status
+ */
+void ROLOCcontroller::getStatus()
+{
+    // TODO implement
+}
+
+/**
+ * @brief ROLOCcontroller::setVolume - slot callback to set the volume
+ */
+void ROLOCcontroller::setVolume()
+{
+    // TODO implement
+}
+
+// you dont need a run function if you have a timer. notice i removed the qtimer in the hpp
+#if 0
 void ROLOCcontroller::run()
 {
     theROLOCcontroller->rolocHardwarePresent();
 }
+#endif
 
+/**
+ * @brief ROLOCcontroller::rolocHardwarePresent
+ */
 void ROLOCcontroller::rolocHardwarePresent()
 {
 //    quint8      data[2];
@@ -75,12 +133,12 @@ void ROLOCcontroller::rolocHardwarePresent()
     if(data != 0x0102)
     {
         qWarning() << "Could not read ID from ROLOC Hardware";
-        theROLOCcontroller->mHardwarePresent = false;
+        mHardwarePresent = false;
         //emit rolocPresent(false);
     }
     else
     {
-        theROLOCcontroller->mHardwarePresent = true;
+        mHardwarePresent = true;
         //emit rolocPresent(true);
     }
 
@@ -88,7 +146,10 @@ void ROLOCcontroller::rolocHardwarePresent()
     //emit rolocPresent(true);
 }
 
-
+/**
+ * @brief ROLOCcontroller::rolocGetData
+ * @return
+ */
 qint16 ROLOCcontroller::rolocGetData()
 {
     //quint8 bytesRead = m_i2cBus.i2c_read_continuous(mI2cAddr, LINEFINDER_INFO, data, 2);
@@ -116,6 +177,9 @@ qint16 ROLOCcontroller::rolocGetData()
     return data;
 }
 
+/**
+ * @brief ROLOCcontroller::rolocSetParameters
+ */
 void ROLOCcontroller::rolocSetParameters()
 {
     quint16 data1 = 0x0400;
@@ -129,12 +193,21 @@ void ROLOCcontroller::rolocSetParameters()
     // todo:: consider error case for I2C
 }
 
+/**
+ * @brief ROLOCcontroller::rolocSetVolume
+ * @param data
+ */
 void ROLOCcontroller::rolocSetVolume(quint16 data)
 {
     qint8 status =  m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_VOLUME, data);
     //todo:: consider error case for I2C
 }
 
+/**
+ * @brief ROLOCcontroller::getMean
+ * @param values
+ * @return
+ */
 double ROLOCcontroller::getMean(QList<quint8> values)
 {
     quint16 sum = 0;
@@ -146,6 +219,11 @@ double ROLOCcontroller::getMean(QList<quint8> values)
     return (sum / values.count());
 }
 
+/**
+ * @brief ROLOCcontroller::getVariance
+ * @param values
+ * @return
+ */
 double ROLOCcontroller::getVariance(QList<quint8> values)
 {
     double mean = getMean(values);
@@ -160,31 +238,36 @@ double ROLOCcontroller::getVariance(QList<quint8> values)
 }
 
 
-
+/**
+ * @brief ROLOCcontroller::getSignalStrengthSignalHandler
+ */
 void ROLOCcontroller::getSignalStrengthSignalHandler()
 {
-    theROLOCcontroller->m_mode = LINEFINDER_MODE_GET_SIGNAL_STRENGTH;
-    quint8 signalStrength = theROLOCcontroller->rolocGetData();
+    m_mode = LINEFINDER_MODE_GET_SIGNAL_STRENGTH;
+    quint8 signalStrength = rolocGetData();
     //emit rolocSignalStrength(signalStrength);
 }
 
+/**
+ * @brief ROLOCcontroller::getDepthMeasurementSignalHandler
+ */
 void ROLOCcontroller::getDepthMeasurementSignalHandler()
 {
     QList<quint8> depthAccumulator;
     QList<quint8> acceptedDepthReadings;
     float scaleOfElimination = (float)N_MULTI_LF_DEPTH_DELTA;
 
-    theROLOCcontroller->m_mode = LINEFINDER_MODE_GET_DEPTH_MEASUREMENT;
+    m_mode = LINEFINDER_MODE_GET_DEPTH_MEASUREMENT;
 
     // collect a minimum of five (N_MULTI_LF_DEPTH_SAMPLE) samples, average and report depth measurement
     for (quint8 nSamples = 0; nSamples < N_MULTI_LF_DEPTH_SAMPLE; nSamples++)
     {
-        theROLOCcontroller->rolocSetParameters();
-        depthAccumulator.append(theROLOCcontroller->rolocGetData());
+        rolocSetParameters();
+        depthAccumulator.append(rolocGetData());
     }
 
-    double mean = theROLOCcontroller->getMean(depthAccumulator);
-    double stdDev = qSqrt(theROLOCcontroller->getVariance(depthAccumulator));
+    double mean = getMean(depthAccumulator);
+    double stdDev = qSqrt(getVariance(depthAccumulator));
 
     for(quint8 i = 0; i < depthAccumulator.count(); i++)
     {
@@ -198,15 +281,21 @@ void ROLOCcontroller::getDepthMeasurementSignalHandler()
         }
     }
 
-    double finalReading = theROLOCcontroller->getMean(acceptedDepthReadings);
+    double finalReading = getMean(acceptedDepthReadings);
     //emit rolocDepthMeasurement(finalReading);
 }
 
+/**
+ * @brief ROLOCcontroller::getStatusSignalHandler
+ */
 void ROLOCcontroller::getStatusSignalHandler()
 {
     //emit rolocStatus();
 }
 
+/**
+ * @brief ROLOCcontroller::setVolumeSignalHandler
+ */
 void ROLOCcontroller::setVolumeSignalHandler()
 {
     //emit rolocVolume();
