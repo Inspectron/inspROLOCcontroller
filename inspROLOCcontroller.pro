@@ -9,11 +9,12 @@ CONFIG -= app_bundle
 
 TARGET = inspROLOCcontroller
     target.files = inspROLOCcontroller
-    target.path = /mnt/app/bin
-    policy.path = $${DESTDIR}/etc/dbus-1/system.d
-    policy.files = com.inspectron.inspROLOCcontroller.conf
+    target.path = /home/pi
+    #policy.path = $${DESTDIR}/etc/dbus-1/system.d
+    #policy.files = com.inspectron.inspROLOCcontroller.conf
 
-INSTALLS += target policy
+INSTALLS += target
+#policy
 
 HEADERS += \
     dbushandler.hpp \

@@ -4,9 +4,13 @@
 
 namespace {
 
-    const int    LINEFINDER_GET_ID                          =   0xDC;
-    const int    LINEFINDER_VOLUME                          =   0x07;
-    const int    LINEFINDER_INFO                            =   0xFA;
+    const quint8  LINEFINDER_GET_ID                         =   0xDC;
+    const quint8  LINEFINDER_VOLUME                         =   0x07;
+    const quint8  LINEFINDER_INFO                           =   0xFA;
+
+    const quint8  LINEFINDER_VOLUME_OFF                     =   0x00;
+    const quint8  LINEFINDER_VOLUME_MED                     =   0x01;
+    const quint8  LINEFINDER_VOLUME_HIGH                    =   0x02;
 
     const int    LINEFINDER_MODE_GET_SIGNAL_STRENGTH        = (0x0000);
     const int    LINEFINDER_MODE_GET_DEPTH_MEASUREMENT      = (0x0002);
@@ -62,6 +66,30 @@ void ROLOCcontroller::init(int argc, char *argv[]) // TODO are these being used 
     mHardwarePresent = false; // TODO you should convert this to a bool instead of quint8
     m_mode = LINEFINDER_MODE_GET_SIGNAL_STRENGTH;
     mFrequency = PARAM_LF_FREQ_512HZ_SONDE; //todo:: over-ride with setting in UI if UI setting is "sticky"
+    mCurrVolume = LINEFINDER_VOLUME_HIGH;
+    m_bModeChangeComplete = false;
+
+
+    rolocDataPollingTimer = new QTimer();
+    connect(rolocDataPollingTimer, SIGNAL(timeout()), this, SLOT(pollROLOC()));
+    rolocDataPollingTimer->setInterval(1000);
+
+    rolocHardwarePresent();
+    qDebug() << "Hardware Present: " << mHardwarePresent;
+    qint16 rolocData = rolocGetData();
+    qDebug() << "ROLOC DATA: " << rolocData;
+
+    rolocSetVolume(mCurrVolume);
+
+    //rolocSetParameters();
+
+    //qint16 rolocData = rolocGetData();
+    //qDebug() << "ROLOC DATA: " << rolocData;
+
+    //rolocSetParameters();
+
+//    m_bModeChangeComplete = true;
+//    rolocDataPollingTimer->start();
 }
 
 void ROLOCcontroller::start()
@@ -72,6 +100,22 @@ void ROLOCcontroller::start()
 void ROLOCcontroller::stop()
 {
     // TODO stop the timer
+}
+
+void ROLOCcontroller::pollROLOC()
+{
+    if(m_bModeChangeComplete)
+    {
+        qint16 rolocData = rolocGetData();
+        qDebug() << "ROLOC DATA: " << rolocData;
+        m_bModeChangeComplete = false;
+    }
+}
+
+void ROLOCcontroller::modeChangeComplete()
+{
+    m_bModeChangeComplete = true;
+    qDebug() << "3.5 second timer expired.  Mode Change Complete";
 }
 
 /**
@@ -106,28 +150,11 @@ void ROLOCcontroller::setVolume()
     // TODO implement
 }
 
-// you dont need a run function if you have a timer. notice i removed the qtimer in the hpp
-#if 0
-void ROLOCcontroller::run()
-{
-    theROLOCcontroller->rolocHardwarePresent();
-}
-#endif
-
 /**
  * @brief ROLOCcontroller::rolocHardwarePresent
  */
 void ROLOCcontroller::rolocHardwarePresent()
 {
-//    quint8      data[2];
-//    quint8 bytesRead = m_i2cBus.i2c_read_continuous(mI2cAddr, LINEFINDER_GET_ID, data, 2);
-
-//    if(bytesRead != 2 || data != 0x0102)
-//    {
-//        qWarning() << "Could not read ID from ROLOC Hardware";
-//        bPresent = false;
-//    }
-
     qint16 data = m_i2cBus.i2c_readWord(mI2cAddr, LINEFINDER_GET_ID);
 
     if(data != 0x0102)
@@ -141,7 +168,6 @@ void ROLOCcontroller::rolocHardwarePresent()
         mHardwarePresent = true;
         //emit rolocPresent(true);
     }
-
 
     //emit rolocPresent(true);
 }
@@ -161,7 +187,12 @@ qint16 ROLOCcontroller::rolocGetData()
         quint8 depthORCalTest = (data & (LINEFINDER_DEPTH_OR_CAL_TEST_DATA_RETURNED << 8));
         quint8 calORBalance   = (data & (LINEFINDER_CAL_OR_BALANCE_DATA_RETURNED    << 8));
         quint8 ping           = (data & (LINEFINDER_PING_DATA_RETURNED              << 8));
-        //quint8 specialDataReceived = (depthORCalTest || calORBalance || ping);
+        quint8 specialDataReceived = (depthORCalTest || calORBalance || ping);
+
+//        qDebug() << "depthORCalTest: " << depthORCalTest;
+//        qDebug() << "calORBalance: " << calORBalance;
+//        qDebug() << "ping :" << ping;
+//        qDebug() << "specialDataReceived: " << specialDataReceived;
 
         if(depthORCalTest || calORBalance)
         {
@@ -182,24 +213,26 @@ qint16 ROLOCcontroller::rolocGetData()
  */
 void ROLOCcontroller::rolocSetParameters()
 {
-    quint16 data1 = 0x0400;
+    int16_t data = 0x0400;
 
-    rolocSetVolume(mCurrVolume);
+    data |= (m_mode << 8);  // todo:: double check that the shift operation provides the correct results!
+    data |= mFrequency;
 
-    data1 |= (m_mode << 8);  // todo:: double check that the shift operation provides the correct results!
-    data1 |= mFrequency;
 
-    qint8 i2cStatus = m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_INFO, data1);
+    /*qint8 i2cStatus =*/ m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_INFO, data);
     // todo:: consider error case for I2C
+
+    m_bModeChangeComplete = false;
+    QTimer::singleShot(5000, this, SLOT(modeChangeComplete()));
 }
 
 /**
  * @brief ROLOCcontroller::rolocSetVolume
  * @param data
  */
-void ROLOCcontroller::rolocSetVolume(quint16 data)
+void ROLOCcontroller::rolocSetVolume(int16_t data)
 {
-    qint8 status =  m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_VOLUME, data);
+    /*qint8 status =*/  m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_VOLUME, data);
     //todo:: consider error case for I2C
 }
 
@@ -227,7 +260,7 @@ double ROLOCcontroller::getMean(QList<quint8> values)
 double ROLOCcontroller::getVariance(QList<quint8> values)
 {
     double mean = getMean(values);
-    int temp = 0;
+    double temp = 0;
 
     for(int i = 0; i < values.count(); i++)
     {
@@ -282,6 +315,7 @@ void ROLOCcontroller::getDepthMeasurementSignalHandler()
     }
 
     double finalReading = getMean(acceptedDepthReadings);
+    qDebug() << finalReading;
     //emit rolocDepthMeasurement(finalReading);
 }
 

@@ -84,11 +84,30 @@ __s32 i2c::i2c_smbus_read_byte_data(int file, __u8 command)
     return 0x0FF & data.byte;
 }
 
+__s32 i2c::i2c_smbus_read_word_data(int file, __u8 command)
+{
+    union i2c_smbus_data data;
+    int err;
+
+    err = i2c_smbus_access(file, I2C_SMBUS_READ, command, I2C_SMBUS_WORD_DATA, &data);
+    if (err < 0)
+        return err;
+
+    return 0x0FFFF & data.word;
+}
+
 __s32 i2c::i2c_smbus_write_byte_data(int file, __u8 command, __u8 value)
 {
     union i2c_smbus_data data;
     data.byte = value;
     return i2c_smbus_access(file, I2C_SMBUS_WRITE, command, I2C_SMBUS_BYTE_DATA, &data);
+}
+
+__s32 i2c::i2c_smbus_write_word_data(int file, __u8 command, __u16 value)
+{
+    union i2c_smbus_data data;
+    data.word = value;
+    return i2c_smbus_access(file, I2C_SMBUS_WRITE, command, I2C_SMBUS_WORD_DATA, &data);
 }
 
 int i2c::i2c_read(int hw_address, int address)
@@ -133,11 +152,8 @@ int i2c::i2c_readWord(int hw_address, int address)
 {
     int file;
     char filename[20];
-    int resOne = 0;
-    int resTwo = 0;
+    int res = 0;
     int reTries = 0;
-
-    // equivalent to: i2cget -y 4 0x67 0x0 v
 
     file = open_i2c_dev(m_i2c_dev, filename, sizeof(filename), 0);
     if (file < 0)
@@ -152,12 +168,10 @@ int i2c::i2c_readWord(int hw_address, int address)
         return -errno;
     }
 
-    do
-    {
-        resOne = i2c_smbus_read_byte_data(file, address);
-        resTwo = i2c_smbus_read_byte_data(file, address);
+    do {
+        res = i2c_smbus_read_word_data(file, address);
         ++reTries;
-    } while (resOne < 0 && resTwo < 0 && reTries < 3);
+    } while (res < 0 && reTries < 3);
 
     if(reTries >= 3)
     {
@@ -166,7 +180,7 @@ int i2c::i2c_readWord(int hw_address, int address)
     }
 
     close(file);
-    return (resOne << 8) | resTwo;
+    return (res >> 8) | ((res & 0xFF) << 8);
 }
 
 int i2c::i2c_read_continuous(int hw_address, int address, char* buf, size_t size)
@@ -251,14 +265,15 @@ int i2c::i2c_write(int hw_address, int address, int data)
     return res;
 }
 
-int i2c::i2c_writeWord(int hw_address, int address, int data)
+int i2c::i2c_writeWord(char hw_address, char address, int16_t data)
 {
-    // equivalent to: i2cset 4 0x67 0x06 0x01
-
     int file;
     char filename[20];
     int res = 0;
     int reTries = 0;
+
+    // reorient bytes in word to output correct byte first
+    data = ((data & 0xFF00) >> 8) | ((data & 0x00FF) << 8);
 
     file = open_i2c_dev(m_i2c_dev, filename, sizeof(filename), 0);
     if (file < 0)
@@ -274,8 +289,7 @@ int i2c::i2c_writeWord(int hw_address, int address, int data)
 
     do
     {
-        res = i2c_smbus_write_byte_data(file, address, (data >> 8));
-        res = i2c_smbus_write_byte_data(file, address, (data && 0x00FF));
+        res = i2c_smbus_write_word_data(file, address, data);
 
         if (res < 0 && errno == EAGAIN)
         {

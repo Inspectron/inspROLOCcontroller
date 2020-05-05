@@ -2,6 +2,7 @@
 #define ROLOCCONTROLLER_HPP
 
 #include <QThread>
+#include <QTimer>
 #include "i2c.hpp"
 
 class ROLOCcontroller
@@ -52,6 +53,8 @@ public slots:
 
 private slots:
     // this is a good way to separate 'self' slots like timer callbacks
+    void pollROLOC();
+    void modeChangeComplete();
 
 private:
 
@@ -63,12 +66,12 @@ private:
     double getMean(QList<quint8> values);
     double getVariance(QList<quint8> values);
     void rolocHardwarePresent();
-    void rolocSetVolume(quint16 data);
+    void rolocSetVolume(int16_t data);
     void rolocSetParameters();
     qint16 rolocGetData();
 
     i2c m_i2cBus;
-    int mI2cAddr;
+    quint8 mI2cAddr;
 
     quint8 mHardwarePresent;
     quint16 m_mode;
@@ -76,6 +79,9 @@ private:
     quint8 mROLOCdepthMeasurement;
     quint8 mCurrVolume;
     quint16 mFrequency;
+    bool m_bModeChangeComplete;
+
+    QTimer *rolocDataPollingTimer;
 
 };
 
