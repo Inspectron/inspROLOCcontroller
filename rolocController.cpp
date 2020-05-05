@@ -18,9 +18,9 @@ namespace {
     const int    LINEFINDER_MODE_CALIBRATION_TEST           = (0x0080 | LINEFINDER_MODE_GET_DEPTH_MEASUREMENT);
     const int    LINEFINDER_MODE_BALANCE                    = (0x0081 | LINEFINDER_MODE_GET_DEPTH_MEASUREMENT);
 
-    const int    LINEFINDER_DEPTH_OR_CAL_TEST_DATA_RETURNED = 0x0010;
-    const int    LINEFINDER_CAL_OR_BALANCE_DATA_RETURNED    = 0x0020;
-    const int    LINEFINDER_PING_DATA_RETURNED              = 0x0040;
+    const int    LINEFINDER_DEPTH_OR_CAL_TEST_DATA_RETURNED = 4; //  0x0010;
+    const int    LINEFINDER_CAL_OR_BALANCE_DATA_RETURNED    = 5; // 0x0020;
+    const int    LINEFINDER_PING_DATA_RETURNED              = 6; // 0x0040;
     const int    LINEFINDER_CAL_FAILURE_VALUE			    = 253;
 
     const int    N_MULTI_LF_DEPTH_SAMPLE	                = 5;
@@ -63,33 +63,28 @@ void ROLOCcontroller::init(int argc, char *argv[]) // TODO are these being used 
     m_i2cBus.i2c_setDevice(1);  // todo:: look up the correct bus
     mI2cAddr = (0xFA >> 1);
 
-    mHardwarePresent = false; // TODO you should convert this to a bool instead of quint8
-    m_mode = LINEFINDER_MODE_GET_SIGNAL_STRENGTH;
-    mFrequency = PARAM_LF_FREQ_512HZ_SONDE; //todo:: over-ride with setting in UI if UI setting is "sticky"
-    mCurrVolume = LINEFINDER_VOLUME_HIGH;
+    m_mode      = LINEFINDER_MODE_GET_DEPTH_MEASUREMENT;
+    mFrequency  = PARAM_LF_FREQ_512HZ_SONDE; //todo:: over-ride with setting in UI if UI setting is "sticky"
+    mCurrVolume = LINEFINDER_VOLUME_MED;
     m_bModeChangeComplete = false;
+    mHardwarePresent = false; // TODO you should convert this to a bool instead of quint8
 
 
     rolocDataPollingTimer = new QTimer();
     connect(rolocDataPollingTimer, SIGNAL(timeout()), this, SLOT(pollROLOC()));
     rolocDataPollingTimer->setInterval(1000);
 
-    rolocHardwarePresent();
-    qDebug() << "Hardware Present: " << mHardwarePresent;
-    qint16 rolocData = rolocGetData();
-    qDebug() << "ROLOC DATA: " << rolocData;
-
+    rolocHardwarePresent(); qDebug() << "Hardware Present: " << mHardwarePresent;
     rolocSetVolume(mCurrVolume);
-
-    //rolocSetParameters();
+    rolocSetParameters();
+    //qint16 rolocData = rolocGetData(); qDebug() << "ROLOC DATA: " << rolocData;
 
     //qint16 rolocData = rolocGetData();
     //qDebug() << "ROLOC DATA: " << rolocData;
 
     //rolocSetParameters();
 
-//    m_bModeChangeComplete = true;
-//    rolocDataPollingTimer->start();
+    rolocDataPollingTimer->start();
 }
 
 void ROLOCcontroller::start()
@@ -108,7 +103,9 @@ void ROLOCcontroller::pollROLOC()
     {
         qint16 rolocData = rolocGetData();
         qDebug() << "ROLOC DATA: " << rolocData;
-        m_bModeChangeComplete = false;
+
+        //getDepthMeasurementSignalHandler();
+        //m_bModeChangeComplete = false;
     }
 }
 
@@ -178,21 +175,21 @@ void ROLOCcontroller::rolocHardwarePresent()
  */
 qint16 ROLOCcontroller::rolocGetData()
 {
-    //quint8 bytesRead = m_i2cBus.i2c_read_continuous(mI2cAddr, LINEFINDER_INFO, data, 2);
     qint16 data = m_i2cBus.i2c_readWord(mI2cAddr, LINEFINDER_INFO);
 
-    //if(bytesRead == 2)
     if(data >= 0)
     {
-        quint8 depthORCalTest = (data & (LINEFINDER_DEPTH_OR_CAL_TEST_DATA_RETURNED << 8));
-        quint8 calORBalance   = (data & (LINEFINDER_CAL_OR_BALANCE_DATA_RETURNED    << 8));
-        quint8 ping           = (data & (LINEFINDER_PING_DATA_RETURNED              << 8));
+        quint8 statusByte = ((data & 0xFF00) >> 8);
+        qDebug() << statusByte;
+        quint8 depthORCalTest = (statusByte >> LINEFINDER_DEPTH_OR_CAL_TEST_DATA_RETURNED) & 1; //  (statusByte & (LINEFINDER_DEPTH_OR_CAL_TEST_DATA_RETURNED));
+        quint8 calORBalance   = (statusByte >> LINEFINDER_CAL_OR_BALANCE_DATA_RETURNED) & 1;    //  (statusByte & (LINEFINDER_CAL_OR_BALANCE_DATA_RETURNED   ));
+        quint8 ping           = (statusByte >> LINEFINDER_PING_DATA_RETURNED) & 1;              //  (statusByte & (LINEFINDER_PING_DATA_RETURNED             ));
         quint8 specialDataReceived = (depthORCalTest || calORBalance || ping);
 
-//        qDebug() << "depthORCalTest: " << depthORCalTest;
-//        qDebug() << "calORBalance: " << calORBalance;
-//        qDebug() << "ping :" << ping;
-//        qDebug() << "specialDataReceived: " << specialDataReceived;
+        qDebug() << "depthORCalTest     : " << depthORCalTest;
+        qDebug() << "calORBalance       : " << calORBalance;
+        qDebug() << "ping               : " << ping;
+        qDebug() << "specialDataReceived: " << specialDataReceived;
 
         if(depthORCalTest || calORBalance)
         {
@@ -202,7 +199,6 @@ qint16 ROLOCcontroller::rolocGetData()
     else
     {
         qWarning() << "Could not read ROLOC I2C Status";
-        //nTries++;
     }
 
     return data;
@@ -223,7 +219,7 @@ void ROLOCcontroller::rolocSetParameters()
     // todo:: consider error case for I2C
 
     m_bModeChangeComplete = false;
-    QTimer::singleShot(5000, this, SLOT(modeChangeComplete()));
+    QTimer::singleShot(3000, this, SLOT(modeChangeComplete()));
 }
 
 /**
