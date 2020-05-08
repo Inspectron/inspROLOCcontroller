@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 4.10.0, 2020-05-03T09:15:41. -->
+<!-- Written by QtCreator 4.10.0, 2020-05-08T08:59:56. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -270,14 +270,32 @@
       <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Upload files via SFTP</value>
       <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName"></value>
       <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">RemoteLinux.DirectUploadStep</value>
-      <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedFiles"/>
-      <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedHosts"/>
-      <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedRemotePaths"/>
-      <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedSysroots"/>
+      <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedFiles">
+       <value type="QString">/home/dan/workspace/build-inspROLOCcontroller-Raspi-Debug/inspROLOCcontroller</value>
+       <value type="QString">/home/dan/workspace/build-inspROLOCcontroller-Raspi-Debug/inspROLOCcontroller</value>
+      </valuelist>
+      <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedHosts">
+       <value type="QString">192.168.1.148</value>
+       <value type="QString">192.168.4.132</value>
+      </valuelist>
+      <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedRemotePaths">
+       <value type="QString">/home/pi</value>
+       <value type="QString">/home/pi</value>
+      </valuelist>
+      <valuelist type="QVariantList" key="ProjectExplorer.RunConfiguration.LastDeployedSysroots">
+       <value type="QString">/opt/qt5pi/sysroot</value>
+       <value type="QString">/opt/qt5pi/sysroot</value>
+      </valuelist>
       <value type="bool" key="RemoteLinux.GenericDirectUploadStep.IgnoreMissingFiles">false</value>
       <value type="bool" key="RemoteLinux.GenericDirectUploadStep.Incremental">true</value>
-      <valuelist type="QVariantList" key="RemoteLinux.LastDeployedLocalTimes"/>
-      <valuelist type="QVariantList" key="RemoteLinux.LastDeployedRemoteTimes"/>
+      <valuelist type="QVariantList" key="RemoteLinux.LastDeployedLocalTimes">
+       <value type="QDateTime">2020-05-05T18:40:06.278</value>
+       <value type="QDateTime">2020-05-07T17:19:37.619</value>
+      </valuelist>
+      <valuelist type="QVariantList" key="RemoteLinux.LastDeployedRemoteTimes">
+       <value type="QDateTime">2020-05-05T18:39:52.000</value>
+       <value type="QDateTime">2020-05-07T17:19:40.000</value>
+      </valuelist>
      </valuemap>
      <value type="int" key="ProjectExplorer.BuildStepList.StepsCount">3</value>
      <value type="QString" key="ProjectExplorer.ProjectConfiguration.DefaultDisplayName">Deploy</value>

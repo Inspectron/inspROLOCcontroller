@@ -67,19 +67,27 @@ private:
     double getVariance(QList<quint8> values);
     void rolocHardwarePresent();
     void rolocSetVolume(int16_t data);
-    void rolocSetParameters();
+    void rolocSetParameters(quint16 mode, quint8 frequency);
     qint16 rolocGetData();
 
     i2c m_i2cBus;
     quint8 mI2cAddr;
 
-    quint8 mHardwarePresent;
-    quint16 m_mode;
+    bool mHardwarePresent;
+    quint8 mCurrentMode;
     quint16 mROLOCsignalStrenth;
     quint8 mROLOCdepthMeasurement;
     quint8 mCurrVolume;
-    quint16 mFrequency;
+    quint8 mFrequency;
+
     bool m_bModeChangeComplete;
+    quint8 m_nSamples;
+    QList<quint8> mDepthAccumulator;
+
+    bool mLeftArrow;
+    bool mRightArrow;
+    bool mCenterArrow;
+    bool mNoArrow;
 
     QTimer *rolocDataPollingTimer;
 
