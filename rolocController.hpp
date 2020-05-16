@@ -4,6 +4,7 @@
 #include <QThread>
 #include <QTimer>
 #include "i2c.hpp"
+#include "inspRolocControllerDbus.hpp"
 
 class ROLOCcontroller
         : public QObject
@@ -32,6 +33,7 @@ public:
 
     void start();
     void stop();
+    void sendDataReport();
 
 signals:
     // this is a place for outbound actions to parent classes
@@ -46,10 +48,9 @@ public slots:
     // this is a good way to separate slots that accessible from parent classes
     // i.e. ROLOCcontroller *r = new ROLOCcontroller()
     //      QObject::connect(dbus, SIGNAL( getSSR() ), r, SLOT( getSSR() ) );
-    void getSignalStrength();
-    void getDepthMeasurement();
-    void getStatus();
-    void setVolume();
+    void getDataReportHandler();
+    void setVolumeHandler(int lvl);
+    void setParametersHandler(int mode, int freq);
 
 private slots:
     // this is a good way to separate 'self' slots like timer callbacks
@@ -60,8 +61,6 @@ private:
 
     void getSignalStrengthSignalHandler();
     void getDepthMeasurementSignalHandler();
-    void getStatusSignalHandler();
-    void setVolumeSignalHandler();
 
     double getMean(QList<quint8> values);
     double getVariance(QList<quint8> values);
@@ -69,16 +68,21 @@ private:
     void rolocSetVolume(int16_t data);
     void rolocSetParameters(quint16 mode, quint8 frequency);
     qint16 rolocGetData();
+    ROLOC_DBUS_API::eROLOC_FREQUENCY getFrequencyDBUS();
+	ROLOC_DBUS_API::eROLOC_MODE getModeDBUS();
+	ROLOC_DBUS_API::eROLOC_ARROW getArrowDBUS();
 
     i2c m_i2cBus;
     quint8 mI2cAddr;
+    InspROLOCControllerDbus &mDbusHandler;
 
+	bool mEnabled;
     bool mHardwarePresent;
     quint8 mCurrentMode;
     quint16 mROLOCsignalStrenth;
-    quint8 mROLOCdepthMeasurement;
+    double mROLOCdepthMeasurement;
     quint8 mCurrVolume;
-    quint8 mFrequency;
+    quint16 mFrequency;
 
     bool m_bModeChangeComplete;
     quint8 m_nSamples;
@@ -89,8 +93,7 @@ private:
     bool mCenterArrow;
     bool mNoArrow;
 
-    QTimer *rolocDataPollingTimer;
-
+    QTimer *mpRolocDataPollingTimer;
 };
 
 #endif // RTSPSERVER_HPP

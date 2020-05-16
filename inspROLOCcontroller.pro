@@ -17,13 +17,13 @@ INSTALLS += target
 #policy
 
 HEADERS += \
-    dbushandler.hpp \
+    inspRolocControllerDbus.hpp \
     rolocController.hpp \
     i2c.hpp
 
 
 SOURCES += main.cpp \
-    dbushandler.cpp \
+    inspRolocControllerDbus.cpp \
     rolocController.cpp \
     i2c.cpp
 
@@ -45,5 +45,4 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 
 DISTFILES += \
-    com.inspectron.inspROLOCcontroller.xml \
     com.inspectron.inspROLOCcontroller.conf

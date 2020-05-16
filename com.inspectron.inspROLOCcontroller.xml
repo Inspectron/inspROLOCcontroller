@@ -1,31 +1,29 @@
 <!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
 <node>
   <interface name="com.inspectron.inspROLOCcontroller">
+    <signal name="rolocUpdateDataReport">
+        <arg name="siglvl" type="i" direction="out"/>
+        <arg name="depth" type="d" direction="out"/>
+        <arg name="arrow" type="i" direction="out"/>
+        <arg name="isConnected" type="b" direction="out"/>
+    </signal>
 
-    <signal name="rolocSignalStrength">
-        <arg name="rssi" type="i" direction="out"/>
-    </signal>
-    <signal name="rolocDepthMeasurement">
-        <arg name="depth" type="s" direction="out"/>
-    </signal>
-    <signal name="rolocStatus">
-        <arg name="status" type="i" direction="out"/>
-    </signal>
-    <signal name="rolocVolume">
+    <signal name="rolocUpdateVolume">
         <arg name="volume" type="i" direction="out"/>
     </signal>
+    <signal name="rolocUpdateParameters">
+        <arg name="mode" type="i" direction="out"/>
+        <arg name="frequency" type="i" direction="out"/>
+    </signal>
 
-    <method name="getSignalStrength">
+    <method name="rolocGetDataReport">
+    </method>
+    <method name="rolocSetVolume">
        <arg name="lvl" type="i" direction="in"/>
     </method>
-    <method name="getDepthMeasurement">
-       <arg name="lvl" type="i" direction="in"/>
-    </method>
-    <method name="getStatus">
-       <arg name="lvl" type="i" direction="in"/>
-    </method>
-    <method name="setVolume">
-       <arg name="lvl" type="i" direction="in"/>
+    <method name="rolocSetParameters">
+        <arg name="mode" type="i" direction="in"/>
+       <arg name="freq" type="i" direction="in"/>
     </method>
 
   </interface>
