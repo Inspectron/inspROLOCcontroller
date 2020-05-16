@@ -373,7 +373,7 @@ void ROLOCcontroller::sendDataReport()
             mROLOCsignalStrenth, mROLOCdepthMeasurement, getArrowDBUS(), mHardwarePresent);
     mDbusHandler.sendDataReport(
             mROLOCsignalStrenth,
-            mROLOCdepthMeasurement,
+            (mCurrentMode == LINEFINDER_MODE_GET_DEPTH_MEASUREMENT) ? mROLOCdepthMeasurement : -99.9,
             getArrowDBUS(),
             mHardwarePresent);
 #if SIMULATION
