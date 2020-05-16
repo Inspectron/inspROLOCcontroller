@@ -8,7 +8,6 @@ int main(int argc, char *argv[])
     ROLOCcontroller rolocController;
 
     rolocController.init(argc, argv);
-    rolocController.start();
 
     return qCoreApp.exec();
 }
