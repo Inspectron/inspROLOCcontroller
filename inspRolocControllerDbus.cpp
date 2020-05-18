@@ -57,13 +57,22 @@ void InspROLOCControllerDbus::sendParameters(int mode, int freq)
 
 // sends data report signal dbus -> UI
 void InspROLOCControllerDbus::sendDataReport(
+    int mode,
+    int frequency,
     int siglvl,
     double depth,
     int arrow,
-    bool isConnected)
+    bool isPresent)
 {
     qDebug("DBus sending report");
-    emit rolocUpdateDataReport(siglvl, depth, arrow, isConnected);
+    emit rolocUpdateDataReport(mode, frequency, siglvl, depth, arrow, isPresent);
+}
+
+// sends data preset signal dbus -> UI
+void InspROLOCControllerDbus::sendPresent(bool isPresent)
+{
+    qDebug("DBus sending report");
+    emit rolocUpdatePresent(isPresent);
 }
 
 // dbus methods UI -> roloc
