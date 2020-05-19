@@ -69,14 +69,14 @@ private:
     void rolocSetParameters(quint16 mode, quint8 frequency);
     qint16 rolocGetData();
     ROLOC_DBUS_API::eROLOC_FREQUENCY getFrequencyDBUS();
-	ROLOC_DBUS_API::eROLOC_MODE getModeDBUS();
-	ROLOC_DBUS_API::eROLOC_ARROW getArrowDBUS();
+    ROLOC_DBUS_API::eROLOC_MODE getModeDBUS();
+    ROLOC_DBUS_API::eROLOC_ARROW getArrowDBUS();
 
     i2c m_i2cBus;
     quint8 mI2cAddr;
     InspROLOCControllerDbus &mDbusHandler;
 
-	bool mEnabled;
+    bool mEnabled;
     bool mHardwarePresent;
     quint8 mCurrentMode;
     quint16 mROLOCsignalStrenth;

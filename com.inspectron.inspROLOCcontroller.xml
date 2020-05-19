@@ -2,12 +2,16 @@
 <node>
   <interface name="com.inspectron.inspROLOCcontroller">
     <signal name="rolocUpdateDataReport">
+        <arg name="mode" type="i" direction="out"/>
+        <arg name="frequency" type="i" direction="out"/>
         <arg name="siglvl" type="i" direction="out"/>
         <arg name="depth" type="d" direction="out"/>
         <arg name="arrow" type="i" direction="out"/>
-        <arg name="isConnected" type="b" direction="out"/>
+        <arg name="isPresent" type="b" direction="out"/>
     </signal>
-
+    <signal name="rolocUpdatePresent">
+        <arg name="isPresent" type="b" direction="out"/>
+    </signal>
     <signal name="rolocUpdateVolume">
         <arg name="volume" type="i" direction="out"/>
     </signal>

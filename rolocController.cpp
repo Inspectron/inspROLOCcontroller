@@ -120,15 +120,27 @@ void ROLOCcontroller::start()
 
 void ROLOCcontroller::stop()
 {
-    mpRolocDataPollingTimer->stop();
     m_bModeChangeComplete = false;
     mEnabled = false;
-    // TODO:: shutdown ROLOC hardware
 }
 
 void ROLOCcontroller::pollROLOC()
 {
-    if(m_bModeChangeComplete && mEnabled /*&& m_nSamples < N_MULTI_LF_DEPTH_DELTA*/)
+    bool hw = mHardwarePresent;
+
+    rolocHardwarePresent();
+    if(mHardwarePresent != hw)
+    {
+        if(mHardwarePresent)
+        {
+            start();
+        }
+        else
+        {
+            stop();
+        }
+    }
+    if(mHardwarePresent && m_bModeChangeComplete && mEnabled /*&& m_nSamples < N_MULTI_LF_DEPTH_DELTA*/)
     {
         qint16 rolocData = rolocGetData();
         //qDebug() << "ROLOC DATA: " << rolocData;
@@ -171,9 +183,6 @@ void ROLOCcontroller::pollROLOC()
             }
         }
         sendDataReport();
-
-        //getDepthMeasurementSignalHandler();
-        //m_bModeChangeComplete = false;
     }
 }
 
@@ -191,7 +200,20 @@ void ROLOCcontroller::rolocHardwarePresent()
     qint16 data;
 
 #if SIMULATION
-    data = 0x102;
+    static int counter = 0;
+
+    if(((++counter) % 20) == 0)
+    {   // toggle hw present every 20 polls
+        mHardwarePresent = !mHardwarePresent;
+    }
+    if(mHardwarePresent)
+    {
+        data = 0x102;
+    }
+    else
+    {
+        data = 0;
+    }
 #else
     data = m_i2cBus.i2c_readWord(mI2cAddr, LINEFINDER_GET_ID);
 #endif
@@ -205,7 +227,7 @@ void ROLOCcontroller::rolocHardwarePresent()
         mHardwarePresent = true;
     }
 
-    //emit rolocPresent(mHardwarePresent);
+    mDbusHandler.sendPresent(mHardwarePresent);
 }
 
 /**
@@ -369,11 +391,14 @@ double ROLOCcontroller::getVariance(QList<quint8> values)
  */
 void ROLOCcontroller::sendDataReport()
 {
-    qDebug("Report: signal=%d depth=%0.2f arrow=%d hw=%d",
+    qDebug("Report: mode=%d freq=%d signal=%d depth=%0.2f arrow=%d hw=%d",
+           getModeDBUS(), getFrequencyDBUS(),
             mROLOCsignalStrenth, mROLOCdepthMeasurement, getArrowDBUS(), mHardwarePresent);
     mDbusHandler.sendDataReport(
+            getModeDBUS(),
+            getFrequencyDBUS(),
             mROLOCsignalStrenth,
-            (mCurrentMode == LINEFINDER_MODE_GET_DEPTH_MEASUREMENT) ? mROLOCdepthMeasurement : -1000.0, // invalid depth if not reading depth
+            mROLOCdepthMeasurement,
             getArrowDBUS(),
             mHardwarePresent);
 #if SIMULATION

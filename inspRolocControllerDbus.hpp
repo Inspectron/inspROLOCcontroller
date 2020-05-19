@@ -66,7 +66,8 @@ signals:
     void setVolumeHandler(int lvl);
     void setParametersHandler(int mode, int freq);
     //roloc -> dbus signal
-    void rolocUpdateDataReport(int siglvl, double depth, int arrow, bool isConnected);
+    void rolocUpdateDataReport(int mode, int frequency, int siglvl, double depth, int arrow, bool isPresent);
+    void rolocUpdatePresent(bool isPresent);
     void rolocUpdateParameters(int mode, int frequency);
     void rolocUpdateVolume(int volume);
 
@@ -80,10 +81,13 @@ public slots:
     void sendVolume(int volume);
     void sendParameters(int mode, int freq);
     void sendDataReport(
+        int mode,
+        int frequency,
         int siglvl,
         double depth,
         int arrow,
-        bool isConnected);
+        bool isPresent);
+    void sendPresent(bool isPresent);
 };
 
 #endif // DBUSHANDLER_HPP
