@@ -9,7 +9,7 @@ CONFIG -= app_bundle
 
 TARGET = inspROLOCcontroller
     target.files = inspROLOCcontroller
-    target.path = /home/pi
+    target.path = /mnt/app/bin
     #policy.path = $${DESTDIR}/etc/dbus-1/system.d
     #policy.files = com.inspectron.inspROLOCcontroller.conf
 
@@ -20,7 +20,6 @@ HEADERS += \
     inspRolocControllerDbus.hpp \
     rolocController.hpp \
     i2c.hpp
-
 
 SOURCES += main.cpp \
     inspRolocControllerDbus.cpp \

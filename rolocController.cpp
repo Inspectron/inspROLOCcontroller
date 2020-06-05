@@ -3,8 +3,6 @@
 #include "rolocController.hpp"
 #include "inspRolocControllerDbus.hpp"
 
-#define SIMULATION  1   // 1=simulation enabled
-
 namespace {
 
     const quint8  I2C_BUS                                   =      1;
@@ -48,11 +46,6 @@ namespace {
 
     const int    TIMER_DATA_POLLING_PERIOD                  = 500;          // period between data polls in ms
 
-#if SIMULATION
-    static qint16 simuData = 10;        // value 10 - 240
-    static qint16 simuArrow = 0;        // values 1,2,4
-#endif
-
 }
 
 /**
@@ -79,9 +72,7 @@ ROLOCcontroller::~ROLOCcontroller()
  */
 void ROLOCcontroller::init(int argc, char *argv[]) // TODO are these being used ?
 {
-#if SIMULATION == 0
     m_i2cBus.i2c_setDevice(I2C_BUS);
-#endif
     mI2cAddr = (LINEFINDER_I2C_HW_BASE_ADDRESS >> 1);
 
     mCurrentMode = LINEFINDER_MODE_GET_SIGNAL_STRENGTH;  //LINEFINDER_MODE_GET_DEPTH_MEASUREMENT
@@ -199,24 +190,8 @@ void ROLOCcontroller::rolocHardwarePresent()
 {
     qint16 data;
 
-#if SIMULATION
-    static int counter = 0;
-
-    if(((++counter) % 20) == 0)
-    {   // toggle hw present every 20 polls
-        mHardwarePresent = !mHardwarePresent;
-    }
-    if(mHardwarePresent)
-    {
-        data = 0x102;
-    }
-    else
-    {
-        data = 0;
-    }
-#else
     data = m_i2cBus.i2c_readWord(mI2cAddr, LINEFINDER_GET_ID);
-#endif
+
     if(data != 0x0102)
     {
         qWarning() << "Could not read ID from ROLOC Hardware";
@@ -237,17 +212,7 @@ void ROLOCcontroller::rolocHardwarePresent()
 qint16 ROLOCcontroller::rolocGetData()
 {
     qint16 data;
-#if SIMULATION
-    {
-        if(++simuData > 240)
-        {
-            simuData = 10;
-        }
-    }
-    data = (0x100 << simuArrow) | simuData;
-#else
     data = m_i2cBus.i2c_readWord(mI2cAddr, LINEFINDER_INFO);
-#endif
     //qDebug() << "raw data: " << hex << data;
 
     if(data >= 0)
@@ -314,10 +279,9 @@ void ROLOCcontroller::rolocSetParameters(quint16 mode, quint8 frequency)
     data |= (mode << 8);  // todo:: double check that the shift operation provides the correct results!
     data |= frequency;
 
-#if SIMULATION == 0
     /*qint8 i2cStatus =*/ m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_INFO, data);
     // todo:: consider error case for I2C
-#endif
+
     mFrequency = frequency;
     if(mode != mCurrentMode || mEnabled == false)
     {
@@ -341,10 +305,10 @@ void ROLOCcontroller::rolocSetVolume(int16_t data)
         // TODO -- check how to handle out of range value
         data = LINEFINDER_VOLUME_OFF;
     }
-#if SIMULATION == 0
+
     /*qint8 status =*/  m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_VOLUME, data);
     //todo:: consider error case for I2C
-#endif
+
     mCurrVolume = data;
 }
 
@@ -394,24 +358,13 @@ void ROLOCcontroller::sendDataReport()
     qDebug("Report: mode=%d freq=%d signal=%d depth=%0.2f arrow=%d hw=%d",
            getModeDBUS(), getFrequencyDBUS(),
             mROLOCsignalStrenth, mROLOCdepthMeasurement, getArrowDBUS(), mHardwarePresent);
-    mDbusHandler.sendDataReport(
+            mDbusHandler.sendDataReport(
             getModeDBUS(),
             getFrequencyDBUS(),
             mROLOCsignalStrenth,
             mROLOCdepthMeasurement,
             getArrowDBUS(),
             mHardwarePresent);
-#if SIMULATION
-    if(++simuArrow > 3)
-    {
-        simuArrow = 1;
-    }
-    mROLOCsignalStrenth += 10;
-    if(mROLOCsignalStrenth >= 100)
-    {
-        mROLOCsignalStrenth = 0;
-    }
-#endif
 }
 
 // ===========================================
