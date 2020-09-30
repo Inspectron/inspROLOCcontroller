@@ -19,7 +19,8 @@ INSTALLS += target
 HEADERS += \
     inspRolocControllerDbus.hpp \
     rolocController.hpp \
-    i2c.hpp
+    i2c.hpp \
+    include/inspcore.hpp
 
 SOURCES += main.cpp \
     inspRolocControllerDbus.cpp \
@@ -27,6 +28,9 @@ SOURCES += main.cpp \
     i2c.cpp
 
 LIBS += -ludev
+unix {
+    LIBS += -L$$PWD/lib/ -linspCore
+}
 
 DBUS_ADAPTORS += com.inspectron.inspROLOCcontroller.xml
 

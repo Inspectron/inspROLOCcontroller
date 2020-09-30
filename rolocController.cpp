@@ -194,7 +194,7 @@ void ROLOCcontroller::rolocHardwarePresent()
 
     if(data != 0x0102)
     {
-        qWarning() << "Could not read ID from ROLOC Hardware";
+        qWarning() << "Could not read ID from ROLOC Hardware. data = " << data;
         mHardwarePresent = false;
     }
     else
