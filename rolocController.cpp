@@ -286,7 +286,11 @@ void ROLOCcontroller::rolocSetParameters(quint16 mode, int frequency)
     data |= frequency;
 
     int status = m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_INFO, data);
-    // qWarning() << "i2c status = " << status; // TODO handle errors
+
+    if (status != 0)
+    {
+        qWarning() << "i2c error (" << status << ")" << strerror(errno);
+    }
 
     mFrequency = frequency;
     if(mode != mCurrentMode || mEnabled == false)
@@ -313,7 +317,10 @@ void ROLOCcontroller::rolocSetVolume(int16_t data)
     }
 
     int status = m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_VOLUME, data);
-    //qWarning() << "status = " << status; // TODO handle errors
+    if (status != 0)
+    {
+        qWarning() << "i2c error (" << status << ")" << strerror(errno);
+    }
 
     mCurrVolume = data;
 }
