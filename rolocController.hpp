@@ -66,7 +66,7 @@ private:
     double getVariance(QList<quint8> values);
     void rolocHardwarePresent();
     void rolocSetVolume(int16_t data);
-    void rolocSetParameters(quint16 mode, quint8 frequency);
+    void rolocSetParameters(quint16 mode, int frequency);
     qint16 rolocGetData();
     ROLOC_DBUS_API::eROLOC_FREQUENCY getFrequencyDBUS();
     ROLOC_DBUS_API::eROLOC_MODE getModeDBUS();

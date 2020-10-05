@@ -118,7 +118,7 @@ int i2c::i2c_read(int hw_address, int address)
     int reTries = 0;
 
     // equivalent to: i2cget -y 4 0x67 0x0 v
-
+    mI2cMutex.lock();
     file = open_i2c_dev(m_i2c_dev, filename, sizeof(filename), 0);
     if (file < 0)
     {
@@ -145,6 +145,8 @@ int i2c::i2c_read(int hw_address, int address)
     }
 
     close(file);
+
+    mI2cMutex.unlock();
     return res;
 }
 
@@ -155,6 +157,7 @@ int i2c::i2c_readWord(int hw_address, int address)
     int res = 0;
     int reTries = 0;
 
+    mI2cMutex.lock();
     file = open_i2c_dev(m_i2c_dev, filename, sizeof(filename), 0);
     if (file < 0)
     {
@@ -180,6 +183,7 @@ int i2c::i2c_readWord(int hw_address, int address)
     }
 
     close(file);
+    mI2cMutex.unlock();
     return (res >> 8) | ((res & 0xFF) << 8);
 }
 
@@ -224,6 +228,7 @@ int i2c::i2c_write(int hw_address, int address, int data)
     int res = 0;
     int reTries = 0;
 
+    mI2cMutex.lock();
     file = open_i2c_dev(m_i2c_dev, filename, sizeof(filename), 0);
     if (file < 0)
     {
@@ -262,6 +267,9 @@ int i2c::i2c_write(int hw_address, int address, int data)
     }
 
     close(file);
+
+    mI2cMutex.unlock();
+
     return res;
 }
 
@@ -275,6 +283,7 @@ int i2c::i2c_writeWord(char hw_address, char address, int16_t data)
     // reorient bytes in word to output correct byte first
     data = ((data & 0xFF00) >> 8) | ((data & 0x00FF) << 8);
 
+    mI2cMutex.lock();
     file = open_i2c_dev(m_i2c_dev, filename, sizeof(filename), 0);
     if (file < 0)
     {
@@ -311,5 +320,8 @@ int i2c::i2c_writeWord(char hw_address, char address, int16_t data)
     }
 
     close(file);
+
+    mI2cMutex.unlock();
+
     return res;
 }

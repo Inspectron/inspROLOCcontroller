@@ -3,6 +3,8 @@
 #include "rolocController.hpp"
 #include "inspRolocControllerDbus.hpp"
 
+#define DBG_BLOCK 0
+
 namespace {
 
     const quint8  I2C_BUS                                   =      1;
@@ -70,8 +72,10 @@ ROLOCcontroller::~ROLOCcontroller()
  * @param argc
  * @param argv
  */
-void ROLOCcontroller::init(int argc, char *argv[]) // TODO are these being used ?
+void ROLOCcontroller::init(int argc, char *argv[])
 {
+    Q_UNUSED(argc);
+    Q_UNUSED(argv);
     m_i2cBus.i2c_setDevice(I2C_BUS);
     mI2cAddr = (LINEFINDER_I2C_HW_BASE_ADDRESS >> 1);
 
@@ -224,6 +228,8 @@ qint16 ROLOCcontroller::rolocGetData()
         quint8 ping           = (statusByte >> LINEFINDER_PING_DATA_RETURNED) & 1;              //  (statusByte & (LINEFINDER_PING_DATA_RETURNED             ));
         quint8 specialDataReceived = (depthORCalTest || calORBalance || ping);
 
+        Q_UNUSED(specialDataReceived);
+
 #if 0
         qDebug() << "statusByte         : " << statusByte;
         qDebug() << "depthORCalTest     : " << depthORCalTest;
@@ -272,15 +278,15 @@ qint16 ROLOCcontroller::rolocGetData()
 /**
  * @brief ROLOCcontroller::rolocSetParameters
  */
-void ROLOCcontroller::rolocSetParameters(quint16 mode, quint8 frequency)
+void ROLOCcontroller::rolocSetParameters(quint16 mode, int frequency)
 {
     int16_t data = 0x0400;
 
     data |= (mode << 8);  // todo:: double check that the shift operation provides the correct results!
     data |= frequency;
 
-    /*qint8 i2cStatus =*/ m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_INFO, data);
-    // todo:: consider error case for I2C
+    int status = m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_INFO, data);
+    // qWarning() << "i2c status = " << status; // TODO handle errors
 
     mFrequency = frequency;
     if(mode != mCurrentMode || mEnabled == false)
@@ -306,8 +312,8 @@ void ROLOCcontroller::rolocSetVolume(int16_t data)
         data = LINEFINDER_VOLUME_OFF;
     }
 
-    /*qint8 status =*/  m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_VOLUME, data);
-    //todo:: consider error case for I2C
+    int status = m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_VOLUME, data);
+    //qWarning() << "status = " << status; // TODO handle errors
 
     mCurrVolume = data;
 }
@@ -355,9 +361,11 @@ double ROLOCcontroller::getVariance(QList<quint8> values)
  */
 void ROLOCcontroller::sendDataReport()
 {
+#if DBG_BLOCK
     qDebug("Report: mode=%d freq=%d signal=%d depth=%0.2f arrow=%d hw=%d",
            getModeDBUS(), getFrequencyDBUS(),
             mROLOCsignalStrenth, mROLOCdepthMeasurement, getArrowDBUS(), mHardwarePresent);
+#endif
             mDbusHandler.sendDataReport(
             getModeDBUS(),
             getFrequencyDBUS(),

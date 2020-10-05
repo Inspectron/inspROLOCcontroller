@@ -2,6 +2,7 @@
 #include "inspRolocControllerDbus.hpp"
 #include "insproloccontroller_adaptor.h"
 #include <QThread>
+#define DBG_BLOCK 0
 
 namespace
 {
@@ -64,14 +65,18 @@ void InspROLOCControllerDbus::sendDataReport(
     int arrow,
     bool isPresent)
 {
+#if DBG_BLOCK
     qDebug("DBus sending report");
+#endif
     emit rolocUpdateDataReport(mode, frequency, siglvl, depth, arrow, isPresent);
 }
 
 // sends data preset signal dbus -> UI
 void InspROLOCControllerDbus::sendPresent(bool isPresent)
 {
+#if DBG_BLOCK
     qDebug("DBus sending report");
+#endif
     emit rolocUpdatePresent(isPresent);
 }
 
