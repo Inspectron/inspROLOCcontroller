@@ -20,12 +20,14 @@ HEADERS += \
     inspRolocControllerDbus.hpp \
     rolocController.hpp \
     i2c.hpp \
-    include/inspcore.hpp
+    include/inspcore.hpp \
+    rolocarrows.hpp
 
 SOURCES += main.cpp \
     inspRolocControllerDbus.cpp \
     rolocController.cpp \
-    i2c.cpp
+    i2c.cpp \
+    rolocarrows.cpp
 
 LIBS += -ludev
 unix {

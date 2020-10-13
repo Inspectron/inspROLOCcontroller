@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
     QCoreApplication qCoreApp(argc, argv);
     ROLOCcontroller rolocController;
 
-    rolocController.init(argc, argv);
+    rolocController.init();
 
     return qCoreApp.exec();
 }
