@@ -3,28 +3,13 @@
 #include "rolocController.hpp"
 #include "inspRolocControllerDbus.hpp"
 
+#define DBG_BLOCK 0
+
 namespace {
 
     const quint8  I2C_BUS                                   =      1;
     const quint8  LINEFINDER_I2C_HW_BASE_ADDRESS            =   0xFA;
-
-    const quint8  LINEFINDER_GET_ID                         =   0xDC;
-    const quint8  LINEFINDER_VOLUME                         =   0x07;
-    const quint8  LINEFINDER_INFO                           =   0xFA;
-
-    const quint8  LINEFINDER_VOLUME_OFF                     =   0x00;
-    const quint8  LINEFINDER_VOLUME_MED                     =   0x01;
-    const quint8  LINEFINDER_VOLUME_HIGH                    =   0x02;
-
-    const int    LINEFINDER_MODE_GET_SIGNAL_STRENGTH        = (0x0000);
-    const int    LINEFINDER_MODE_GET_DEPTH_MEASUREMENT      = (0x0002);
-    const int    LINEFINDER_MODE_CALIBRATION                = (0x0001 | LINEFINDER_MODE_GET_DEPTH_MEASUREMENT);
-    const int    LINEFINDER_MODE_CALIBRATION_TEST           = (0x0080 | LINEFINDER_MODE_GET_DEPTH_MEASUREMENT);
-    const int    LINEFINDER_MODE_BALANCE                    = (0x0081 | LINEFINDER_MODE_GET_DEPTH_MEASUREMENT);
-
-    const int    LINEFINDER_LEFT_ARROW_BIT                  = 3;
-    const int    LINEFINDER_RIGHT_ARROW_BIT                 = 2;
-    const int    LINEFINDER_CENTER_ARROW_BIT                = 1;
+    const qint16  LINEFINDER_I2C_ID                         =  0x0102;
 
     const int    LINEFINDER_DEPTH_OR_CAL_TEST_DATA_RETURNED = 4; //  0x0010;
     const int    LINEFINDER_CAL_OR_BALANCE_DATA_RETURNED    = 5; // 0x0020;
@@ -45,6 +30,7 @@ namespace {
     const int    PARAM_LF_FREQ_32_5KHZ_PASSIVE              = (9 << 11);
 
     const int    TIMER_DATA_POLLING_PERIOD                  = 500;          // period between data polls in ms
+    const int    TIMER_3SECONDS                             = 3000;
 
 }
 
@@ -52,7 +38,20 @@ namespace {
  * @brief ROLOCcontroller::ROLOCcontroller - ctor. construct any objects
  */
 ROLOCcontroller::ROLOCcontroller()
-: mDbusHandler(* new InspROLOCControllerDbus())
+: m_i2cBus()
+, mI2cAddr(0)
+, mDbusHandler(*new InspROLOCControllerDbus())
+, mEnabled(false)
+, mHardwarePresent(false)
+, mCurrentMode(ROLOC::eMODE_GET_SIGNAL_STRENGTH)
+, mROLOCsignalStrenth(0)
+, mROLOCdepthMeasurement(0.0)
+, mCurrVolume(ROLOC::eVOLUME_OFF)
+, mFrequency(PARAM_LF_FREQ_512HZ_SONDE)
+, mbModeChangeComplete(true)
+, mNumSamples(0)
+, mDepthAccumulator()
+, mRolocArrows(*new ROLOCArrows())
 , mpRolocDataPollingTimer(NULL)
 {
 }
@@ -62,35 +61,30 @@ ROLOCcontroller::ROLOCcontroller()
  */
 ROLOCcontroller::~ROLOCcontroller()
 {
-
+    delete &mRolocArrows;
 }
 
 /**
  * @brief ROLOCcontroller::init - init the class
- * @param argc
- * @param argv
  */
-void ROLOCcontroller::init(int argc, char *argv[]) // TODO are these being used ?
+void ROLOCcontroller::init()
 {
+    // init the i2c
     m_i2cBus.i2c_setDevice(I2C_BUS);
     mI2cAddr = (LINEFINDER_I2C_HW_BASE_ADDRESS >> 1);
 
-    mCurrentMode = LINEFINDER_MODE_GET_SIGNAL_STRENGTH;  //LINEFINDER_MODE_GET_DEPTH_MEASUREMENT
-    mFrequency   = PARAM_LF_FREQ_512HZ_SONDE; //todo:: over-ride with setting in UI if UI setting is "sticky"
-    mCurrVolume  = LINEFINDER_VOLUME_OFF;
-    m_bModeChangeComplete = true;
-    mHardwarePresent = false;
-    mEnabled = false;
-
+    // init dbus
     mDbusHandler.init();
 
+    // init the polling timer
     mpRolocDataPollingTimer = new QTimer();
     connect(mpRolocDataPollingTimer, SIGNAL(timeout()), this, SLOT(pollROLOC()));
     mpRolocDataPollingTimer->setInterval(TIMER_DATA_POLLING_PERIOD);
 
-    rolocHardwarePresent(); qDebug() << "Hardware Present: " << mHardwarePresent;
+    rolocHardwarePresent();
+    qDebug() << "Hardware Present: " << mHardwarePresent;
     rolocSetVolume(mCurrVolume);
-    rolocSetParameters(LINEFINDER_MODE_GET_SIGNAL_STRENGTH, mFrequency);
+    rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, mFrequency);
 
     // connect sigs/slots
     //dbus signals -> controller
@@ -103,21 +97,27 @@ void ROLOCcontroller::init(int argc, char *argv[]) // TODO are these being used 
 
 void ROLOCcontroller::start()
 {
-    QTimer::singleShot(3000, this, SLOT(modeChangeComplete()));
+    QTimer::singleShot(TIMER_3SECONDS, this, SLOT(modeChangeComplete()));
     mpRolocDataPollingTimer->start();
-    m_bModeChangeComplete = false;
+    mbModeChangeComplete = false;
     mEnabled = true;
 }
 
 void ROLOCcontroller::stop()
 {
-    m_bModeChangeComplete = false;
-    mEnabled = false;
+    mbModeChangeComplete = false;
+    mEnabled = false;       // TODO WHAT THE FUCK DOES ENABLED MEAN?
 }
 
+/**
+ * @brief ROLOCcontroller::pollROLOC - function to poll the roloc
+ */
 void ROLOCcontroller::pollROLOC()
 {
     bool hw = mHardwarePresent;
+
+    // TODO: THIS TIMER CODE STARTS ITSELF. SO ON BOOT IT WONT WORK. GOOD JOB.
+    // ITS ALMOST A FUCKING INFINITE LOOP.
 
     rolocHardwarePresent();
     if(mHardwarePresent != hw)
@@ -131,21 +131,27 @@ void ROLOCcontroller::pollROLOC()
             stop();
         }
     }
-    if(mHardwarePresent && m_bModeChangeComplete && mEnabled /*&& m_nSamples < N_MULTI_LF_DEPTH_DELTA*/)
+    if(mHardwarePresent && mbModeChangeComplete && mEnabled /*&& mNumSamples < N_MULTI_LF_DEPTH_DELTA*/)
     {
         qint16 rolocData = rolocGetData();
         //qDebug() << "ROLOC DATA: " << rolocData;
 
-        if(mCurrentMode == LINEFINDER_MODE_GET_SIGNAL_STRENGTH)
+        if(mCurrentMode == ROLOC::eMODE_GET_SIGNAL_STRENGTH)
         {
+            // update the sig strength
+            mROLOCsignalStrenth = rolocData;
+
+            qDebug() << "sig strength = " << mROLOCsignalStrenth; // TODO verify if is this working ?
+
+            // clear the depth measurements
             mDepthAccumulator.clear();
         }
         else
         {
             mDepthAccumulator.append(rolocData);
-            m_nSamples++;
+            mNumSamples++;
 
-            if(m_nSamples > N_MULTI_LF_DEPTH_SAMPLE)
+            if(mNumSamples > N_MULTI_LF_DEPTH_SAMPLE)
             {
                 QList<quint8> acceptedDepthReadings;
                 float scaleOfElimination = (float)N_MULTI_LF_DEPTH_DELTA;
@@ -177,9 +183,10 @@ void ROLOCcontroller::pollROLOC()
     }
 }
 
+// TODO WHAT THE FUCK DOES THIS EVEN MEAN. WHY IS THERE A MYTHICAL 3.5 SECOND TIMER
 void ROLOCcontroller::modeChangeComplete()
 {
-    m_bModeChangeComplete = true;
+    mbModeChangeComplete = true;
     qDebug() << "3.5 second timer expired.  Mode Change Complete";
 }
 
@@ -189,12 +196,15 @@ void ROLOCcontroller::modeChangeComplete()
 void ROLOCcontroller::rolocHardwarePresent()
 {
     qint16 data;
+    // TODO WHAT. THE. FUCK. fix this.
+    // THIS LOOKS LIKE IT WAS IMPLEMENTED BY SOMEONE WITH A HEAD INJURY
+    // JUST RETURN THE DAMN BOOL
 
-    data = m_i2cBus.i2c_readWord(mI2cAddr, LINEFINDER_GET_ID);
+    data = m_i2cBus.i2c_readWord(mI2cAddr, ROLOC::eCMD_GET_ID);
 
-    if(data != 0x0102)
+    if(data != LINEFINDER_I2C_ID)
     {
-        qWarning() << "Could not read ID from ROLOC Hardware";
+        qWarning() << "Could not read ID from ROLOC Hardware. data = " << data;
         mHardwarePresent = false;
     }
     else
@@ -212,8 +222,9 @@ void ROLOCcontroller::rolocHardwarePresent()
 qint16 ROLOCcontroller::rolocGetData()
 {
     qint16 data;
-    data = m_i2cBus.i2c_readWord(mI2cAddr, LINEFINDER_INFO);
-    //qDebug() << "raw data: " << hex << data;
+    data = m_i2cBus.i2c_readWord(mI2cAddr, ROLOC::eCMD_INFO);
+
+    qDebug() << "raw data: " << hex << data;
 
     if(data >= 0)
     {
@@ -224,7 +235,9 @@ qint16 ROLOCcontroller::rolocGetData()
         quint8 ping           = (statusByte >> LINEFINDER_PING_DATA_RETURNED) & 1;              //  (statusByte & (LINEFINDER_PING_DATA_RETURNED             ));
         quint8 specialDataReceived = (depthORCalTest || calORBalance || ping);
 
-#if 0
+        Q_UNUSED(specialDataReceived);
+
+#if DBG_BLOCK
         qDebug() << "statusByte         : " << statusByte;
         qDebug() << "depthORCalTest     : " << depthORCalTest;
         qDebug() << "calORBalance       : " << calORBalance;
@@ -238,26 +251,22 @@ qint16 ROLOCcontroller::rolocGetData()
         }
         else
         {
+            // this is either the sig strength or the depth
+            // this range limits the values 0 -> 0xF9 (240)
             data = data & 0x00FF;
             if(data > 240) data = 240;
             if(data <  10) data = 0;
 
-            mLeftArrow   = (statusByte >> LINEFINDER_LEFT_ARROW_BIT)   & 1;
-            mCenterArrow = (statusByte >> LINEFINDER_CENTER_ARROW_BIT) & 1;
-            mRightArrow  = (statusByte >> LINEFINDER_RIGHT_ARROW_BIT)  & 1;
-            mNoArrow     = !mLeftArrow && !mCenterArrow && !mRightArrow;
+            // set the arrowsS
+            mRolocArrows.set( statusByte );
 
             // oddly enough the device will provide multiple arrow indicators
             // therefore we filter the results such that if the data is zero
             // then indicate a center arrow, else priority to right arrow if left
             // and right are true.  Old code for displaying the arrow was:
             // e.g. screen = (mCenterArrow || mNoArrow || data == 0) ? dislay center arrow : ((mRightArrow) ? display rigth : display left
-#if 0
-            qDebug() << "statusByte  : " << hex << statusByte;
-            qDebug() << "LeftArrow   : " << hex << mLeftArrow;
-            qDebug() << "RightArrow  : " << hex << mRightArrow;
-            qDebug() << "CenterArrow : " << hex << mCenterArrow;
-            qDebug() << "NoArrow     : " << hex << mNoArrow;
+#if DBG_BLOCK
+            qDebug() << mRolocArrows.getString();
 #endif
         }
     }
@@ -272,15 +281,19 @@ qint16 ROLOCcontroller::rolocGetData()
 /**
  * @brief ROLOCcontroller::rolocSetParameters
  */
-void ROLOCcontroller::rolocSetParameters(quint16 mode, quint8 frequency)
+void ROLOCcontroller::rolocSetParameters(quint16 mode, int frequency)
 {
-    int16_t data = 0x0400;
+    int16_t data = 0x0400;  // TODO : WHAT THE FUCK IS THIS MAGIC NUMBER ?
 
     data |= (mode << 8);  // todo:: double check that the shift operation provides the correct results!
-    data |= frequency;
+    data |= frequency;    // TODO GARBAGE WILL ACTUALY CLIP THE FREQ VALUE since its 16 bit. WHAT THE FUCK
 
-    /*qint8 i2cStatus =*/ m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_INFO, data);
-    // todo:: consider error case for I2C
+    int status = m_i2cBus.i2c_writeWord(mI2cAddr, ROLOC::eCMD_INFO, data);
+
+    if (status != 0)
+    {
+        qWarning() << "i2c error (" << status << ")" << strerror(errno);
+    }
 
     mFrequency = frequency;
     if(mode != mCurrentMode || mEnabled == false)
@@ -296,18 +309,21 @@ void ROLOCcontroller::rolocSetParameters(quint16 mode, quint8 frequency)
  */
 void ROLOCcontroller::rolocSetVolume(int16_t data)
 {
-    if(data < LINEFINDER_VOLUME_OFF)
+    if(data < ROLOC::eVOLUME_OFF)
     {
-        data = LINEFINDER_VOLUME_OFF;
+        data = ROLOC::eVOLUME_OFF;
     }
-    else if(data > LINEFINDER_VOLUME_HIGH)
+    else if(data > ROLOC::eVOLUME_HIGH)
     {
         // TODO -- check how to handle out of range value
-        data = LINEFINDER_VOLUME_OFF;
+        data = ROLOC::eVOLUME_OFF;
     }
 
-    /*qint8 status =*/  m_i2cBus.i2c_writeWord(mI2cAddr, LINEFINDER_VOLUME, data);
-    //todo:: consider error case for I2C
+    int status = m_i2cBus.i2c_writeWord(mI2cAddr, ROLOC::eCMD_VOLUME, data);
+    if (status != 0)
+    {
+        qWarning() << "i2c error (" << status << ")" << strerror(errno);
+    }
 
     mCurrVolume = data;
 }
@@ -355,15 +371,17 @@ double ROLOCcontroller::getVariance(QList<quint8> values)
  */
 void ROLOCcontroller::sendDataReport()
 {
+#if DBG_BLOCK
     qDebug("Report: mode=%d freq=%d signal=%d depth=%0.2f arrow=%d hw=%d",
            getModeDBUS(), getFrequencyDBUS(),
             mROLOCsignalStrenth, mROLOCdepthMeasurement, getArrowDBUS(), mHardwarePresent);
+#endif
             mDbusHandler.sendDataReport(
             getModeDBUS(),
             getFrequencyDBUS(),
             mROLOCsignalStrenth,
             mROLOCdepthMeasurement,
-            getArrowDBUS(),
+            mRolocArrows.getDBusValue(),
             mHardwarePresent);
 }
 
@@ -390,13 +408,13 @@ void ROLOCcontroller::setVolumeHandler(int lvl)
     switch(lvl)
     {
     case ROLOC_DBUS_API::eROLOC_VOLUME_OFF:
-        hwvol = LINEFINDER_VOLUME_OFF;
+        hwvol = ROLOC::eVOLUME_OFF;
         break;
     case ROLOC_DBUS_API::eROLOC_VOLUME_MED:
-        hwvol = LINEFINDER_VOLUME_MED;
+        hwvol = ROLOC::eVOLUME_MED;
         break;
     case ROLOC_DBUS_API::eROLOC_VOLUME_HIGH:
-        hwvol = LINEFINDER_VOLUME_HIGH;
+        hwvol = ROLOC::eVOLUME_HIGH;
         break;
     default:
         hwvol = mCurrVolume;
@@ -416,22 +434,25 @@ void ROLOCcontroller::setParametersHandler(int mode, int freq)
     qint8 hwmode;
     qint16 hwfreq;
 
+
+    // TODO: LETS FUCKING CONVERT ENUMS BACK AND FORTH RATHER THAN SIMPLY
+    // MAKE THEM THE SAME
     switch(mode)
     {
     case ROLOC_DBUS_API::eROLOC_MODE_GET_SIGNAL_STRENGTH:
-        hwmode = LINEFINDER_MODE_GET_SIGNAL_STRENGTH;
+        hwmode = ROLOC::eMODE_GET_SIGNAL_STRENGTH;
         break;
     case ROLOC_DBUS_API::eROLOC_MODE_GET_DEPTH_MEASUREMENT:
-        hwmode = LINEFINDER_MODE_GET_DEPTH_MEASUREMENT;
+        hwmode = ROLOC::eMODE_GET_DEPTH_MEASUREMENT;
         break;
     case ROLOC_DBUS_API::eROLOC_MODE_CALIBRATION:
-        hwmode = LINEFINDER_MODE_CALIBRATION;
+        hwmode = ROLOC::eMODE_CALIBRATION;
         break;
     case ROLOC_DBUS_API::eROLOC_MODE_CALIBRATION_TEST:
-        hwmode = LINEFINDER_MODE_CALIBRATION_TEST;
+        hwmode = ROLOC::eMODE_CALIBRATION_TEST;
         break;
     case ROLOC_DBUS_API::eROLOC_MODE_BALANCE:
-        hwmode = LINEFINDER_MODE_BALANCE;
+        hwmode = ROLOC::eMODE_BALANCE;
         break;
     case ROLOC_DBUS_API::eROLOC_MODE_NOCHANGE:
     default:
@@ -471,6 +492,14 @@ void ROLOCcontroller::setParametersHandler(int mode, int freq)
     }
     else
     {
+        // TODO remove
+        qCritical() << "request for mode: "
+                       << getString(static_cast<ROLOC_DBUS_API::eROLOC_MODE>(mode))
+                       << QString("--hwmode-->").arg(QString::number(hwmode, 16))
+                       << "@ freq "
+                       << getString(static_cast<ROLOC_DBUS_API::eROLOC_FREQUENCY>(freq))
+                       << QString("--hwfreq--> 0x%1").arg(QString::number(hwfreq, 16));
+
         rolocSetParameters(hwmode, hwfreq);
     }
     mDbusHandler.sendParameters(getModeDBUS(), getFrequencyDBUS());
@@ -527,19 +556,19 @@ ROLOC_DBUS_API::eROLOC_MODE ROLOCcontroller::getModeDBUS()
         // convert hardware frequency values to dbus enum
         switch(mCurrentMode)
         {
-        case LINEFINDER_MODE_GET_SIGNAL_STRENGTH:
+        case ROLOC::eMODE_GET_SIGNAL_STRENGTH:
             mode = ROLOC_DBUS_API::eROLOC_MODE_GET_SIGNAL_STRENGTH;
             break;
-        case LINEFINDER_MODE_GET_DEPTH_MEASUREMENT:
+        case ROLOC::eMODE_GET_DEPTH_MEASUREMENT:
             mode = ROLOC_DBUS_API::eROLOC_MODE_GET_DEPTH_MEASUREMENT;
             break;
-        case LINEFINDER_MODE_CALIBRATION:
+        case ROLOC::eMODE_CALIBRATION:
             mode = ROLOC_DBUS_API::eROLOC_MODE_CALIBRATION;
             break;
-        case LINEFINDER_MODE_CALIBRATION_TEST:
+        case ROLOC::eMODE_CALIBRATION_TEST:
             mode = ROLOC_DBUS_API::eROLOC_MODE_CALIBRATION_TEST;
             break;
-        case LINEFINDER_MODE_BALANCE:
+        case ROLOC::eMODE_BALANCE:
             mode = ROLOC_DBUS_API::eROLOC_MODE_BALANCE;
             break;
         default:
@@ -552,29 +581,4 @@ ROLOC_DBUS_API::eROLOC_MODE ROLOCcontroller::getModeDBUS()
         mode = ROLOC_DBUS_API::eROLOC_MODE_OFF;
     }
     return(mode);
-}
-
-/**
- * @brief ROLOCcontroller::getArrowDBUS -- convert internal
- *        arrow bools to DBUS enum
- * @return ROLOC_DBUS_API::eROLOC_ARROW
- */
-ROLOC_DBUS_API::eROLOC_ARROW ROLOCcontroller::getArrowDBUS()
-{
-    ROLOC_DBUS_API::eROLOC_ARROW arrow;
-
-    // generate enumerated value from arrow bools
-    if(mCenterArrow || mNoArrow)
-    {
-        arrow = ROLOC_DBUS_API::eCENTER_ARROW;
-    }
-    else if(mRightArrow)
-    {
-        arrow = ROLOC_DBUS_API::eRIGHT_ARROW;
-    }
-    else
-    {
-        arrow = ROLOC_DBUS_API::eLEFT_ARROW;
-    }
-    return(arrow);
 }

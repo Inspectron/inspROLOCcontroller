@@ -48,7 +48,7 @@ namespace ROLOC_DBUS_API
         //
         eROLOC_VOLUME_MAX
     };
-};
+}
 
 class InspROLOCControllerDbus : public QObject
 {

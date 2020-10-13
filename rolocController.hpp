@@ -5,16 +5,49 @@
 #include <QTimer>
 #include "i2c.hpp"
 #include "inspRolocControllerDbus.hpp"
+#include "rolocarrows.hpp"
+
+namespace ROLOC
+{
+    // modes of operation
+    enum eLINEFINDER_MODE
+    {
+        eMODE_GET_SIGNAL_STRENGTH        = (0x0000),
+        eMODE_GET_DEPTH_MEASUREMENT      = (0x0002),
+        eMODE_CALIBRATION                = (0x0001 | eMODE_GET_DEPTH_MEASUREMENT),
+        eMODE_CALIBRATION_TEST           = (0x0080 | eMODE_GET_DEPTH_MEASUREMENT),
+        eMODE_BALANCE                    = (0x0081 | eMODE_GET_DEPTH_MEASUREMENT),
+    };
+
+    // volume levels
+    enum eLINEFINDER_VOLUME
+    {
+        eVOLUME_OFF                     =   0x00,
+        eVOLUME_MED                     =   0x01,
+        eVOLUME_HIGH                    =   0x02,
+    };
+
+    // commands
+    enum eLINEFINDER_CMD
+    {
+        eCMD_GET_ID                         =   0xDC,
+        eCMD_VOLUME                         =   0x07,
+        eCMD_INFO                           =   0xFA,
+    };
+
+
+
+}
 
 class ROLOCcontroller
-        : public QObject
+: public QObject
 {
     Q_OBJECT
 public:
     ROLOCcontroller();
     virtual ~ROLOCcontroller();
 
-    void init(int argc, char *argv[]);
+    void init();
 #if 0
     // two reasons i removed this:
     // 1) you can achieve the same result with a timer
@@ -66,11 +99,12 @@ private:
     double getVariance(QList<quint8> values);
     void rolocHardwarePresent();
     void rolocSetVolume(int16_t data);
-    void rolocSetParameters(quint16 mode, quint8 frequency);
+    void rolocSetParameters(quint16 mode, int frequency);
     qint16 rolocGetData();
     ROLOC_DBUS_API::eROLOC_FREQUENCY getFrequencyDBUS();
     ROLOC_DBUS_API::eROLOC_MODE getModeDBUS();
-    ROLOC_DBUS_API::eROLOC_ARROW getArrowDBUS();
+    QString getString(ROLOC_DBUS_API::eROLOC_MODE mode);
+    QString getString(ROLOC_DBUS_API::eROLOC_FREQUENCY freq);
 
     i2c m_i2cBus;
     quint8 mI2cAddr;
@@ -84,16 +118,42 @@ private:
     quint8 mCurrVolume;
     quint16 mFrequency;
 
-    bool m_bModeChangeComplete;
-    quint8 m_nSamples;
+    bool mbModeChangeComplete;
+    quint8 mNumSamples;
     QList<quint8> mDepthAccumulator;
 
-    bool mLeftArrow;
-    bool mRightArrow;
-    bool mCenterArrow;
-    bool mNoArrow;
-
+    ROLOCArrows &mRolocArrows;
     QTimer *mpRolocDataPollingTimer;
 };
+
+/**
+ * @brief ROLOCcontroller::getString - convert dbus roloc mode to a string
+ */
+inline QString ROLOCcontroller::getString(ROLOC_DBUS_API::eROLOC_MODE mode)
+{
+    return (mode == ROLOC_DBUS_API::eROLOC_MODE_NOCHANGE              ? "mode no change"    :
+           (mode == ROLOC_DBUS_API::eROLOC_MODE_OFF                   ? "mode off"          :
+           (mode == ROLOC_DBUS_API::eROLOC_MODE_GET_SIGNAL_STRENGTH   ? "mode sig strength" :
+           (mode == ROLOC_DBUS_API::eROLOC_MODE_GET_DEPTH_MEASUREMENT ? "mode depth meas"   :
+           (mode == ROLOC_DBUS_API::eROLOC_MODE_CALIBRATION           ? "mode cal"          :
+           (mode == ROLOC_DBUS_API::eROLOC_MODE_CALIBRATION_TEST      ? "mode cal test"     :
+           (mode == ROLOC_DBUS_API::eROLOC_MODE_BALANCE               ? "mode balance"      :
+           (mode == ROLOC_DBUS_API::eROLOC_MODE_MAX                   ? "mode max"          : "???" ))))))));
+}
+
+/**
+ * @brief ROLOCcontroller::getString - convert dbus roloc freq to a string
+ */
+inline QString ROLOCcontroller::getString(ROLOC_DBUS_API::eROLOC_FREQUENCY freq)
+{
+    return (freq == ROLOC_DBUS_API::eROLOC_FREQ_NOCHANGE        ? "no change"       :
+           (freq == ROLOC_DBUS_API::eROLOC_FREQ_512HZ_SONDE     ? "512hz sonde"     :
+           (freq == ROLOC_DBUS_API::eROLOC_FREQ_640HZ_SONDE     ? "640hz sonde"     :
+           (freq == ROLOC_DBUS_API::eROLOC_FREQ_50HZ_PASSIVE    ? "50hz passive"    :
+           (freq == ROLOC_DBUS_API::eROLOC_FREQ_60HZ_PASSIVE    ? "60hz passive"    :
+           (freq == ROLOC_DBUS_API::eROLOC_FREQ_32_5KHZ_ACTIVE  ? "32.5khz active"  :
+           (freq == ROLOC_DBUS_API::eROLOC_FREQ_32_5KHZ_PASSIVE ? "32.5khz passive" :
+           (freq == ROLOC_DBUS_API::eROLOC_FREQ_MAX             ? "freq max"        : "???" ))))))));
+}
 
 #endif // RTSPSERVER_HPP
