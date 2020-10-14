@@ -21,7 +21,8 @@ HEADERS += \
     rolocController.hpp \
     i2c.hpp \
     include/inspcore.hpp \
-    rolocarrows.hpp
+    rolocarrows.hpp \
+    roloctypes.hpp
 
 SOURCES += main.cpp \
     inspRolocControllerDbus.cpp \
