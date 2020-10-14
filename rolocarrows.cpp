@@ -1,21 +1,10 @@
 #include "rolocarrows.hpp"
 
-// anonymous namespace
-namespace
-{
-    const int    LINEFINDER_LEFT_ARROW_BIT                  = 3;
-    const int    LINEFINDER_RIGHT_ARROW_BIT                 = 2;
-    const int    LINEFINDER_CENTER_ARROW_BIT                = 1;
-}
-
 /**
  * @brief ROLOCArrows::ROLOCArrows - ctor
  */
 ROLOCArrows::ROLOCArrows()
-: mStatusByte(0x00)
-, mbLeftArrow  (false)
-, mbRightArrow (false)
-, mbCenterArrow(false)
+: mArrow()
 {
 
 }
@@ -25,31 +14,14 @@ ROLOCArrows::ROLOCArrows()
  */
 void ROLOCArrows::set(quint8 statusByte)
 {
-    // reset the data
-    reset();
-
-    // acquire new data
-    mStatusByte = statusByte;
-    mbLeftArrow   = (statusByte >> LINEFINDER_LEFT_ARROW_BIT)   & 1;
-    mbCenterArrow = (statusByte >> LINEFINDER_CENTER_ARROW_BIT) & 1;
-    mbRightArrow  = (statusByte >> LINEFINDER_RIGHT_ARROW_BIT)  & 1;
+    // set the data
+    mArrow.status = statusByte;
 
     // if no direction is specified. we force it to center
-    if (!mbLeftArrow || !mbCenterArrow || !mbRightArrow)
+    if (!mArrow.leftArrow || !mArrow.centerArrow || !mArrow.rightArrow)
     {
-        mbCenterArrow = true;
+        mArrow.centerArrow = 1;
     }
-}
-
-/**
- * @brief ROLOCArrows::reset - reset the arrows values
- */
-void ROLOCArrows::reset()
-{
-    mStatusByte   = 0x00;
-    mbLeftArrow   = false;
-    mbRightArrow  = false;
-    mbCenterArrow = false;
 }
 
 /**
@@ -60,11 +32,11 @@ ROLOC_DBUS_API::eROLOC_ARROW ROLOCArrows::getDBusValue()
     ROLOC_DBUS_API::eROLOC_ARROW arrow;
 
     // generate enumerated value from arrow bools
-    if(mbCenterArrow)
+    if(mArrow.centerArrow)
     {
         arrow = ROLOC_DBUS_API::eCENTER_ARROW;
     }
-    else if(mbRightArrow)
+    else if(mArrow.rightArrow)
     {
         arrow = ROLOC_DBUS_API::eRIGHT_ARROW;
     }

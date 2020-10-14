@@ -29,6 +29,11 @@
         <arg name="mode" type="i" direction="in"/>
        <arg name="freq" type="i" direction="in"/>
     </method>
-
+    <method name="rolocSetMode">
+        <arg name="mode" type="i" direction="in"/>
+    </method>
+    <method name="rolocSetFrequency">
+       <arg name="freq" type="i" direction="in"/>
+    </method>
   </interface>
 </node>
