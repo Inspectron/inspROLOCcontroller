@@ -104,8 +104,6 @@ void InspROLOCControllerDbus::rolocSetVolume(int lvl)
     }
 }
 
-// TODO you shouldnt have to force the same mode being sent. it should be split into two APIs
-
 // dbus methods UI -> roloc
 void InspROLOCControllerDbus::rolocSetParameters(int mode, int freq)
 {
@@ -127,7 +125,7 @@ void InspROLOCControllerDbus::rolocSetParameters(int mode, int freq)
  */
 void InspROLOCControllerDbus::rolocSetMode(int mode)
 {
-    qCritical() << "request to set the mode to " << mode; // TODO test and remove
+    qCritical() << "request to set the mode to " << getString(mode); // TODO test and remove
 
     ROLOC::eLINEFINDER_MODE rolocMode = getMode(mode);
 
@@ -146,7 +144,7 @@ void InspROLOCControllerDbus::rolocSetMode(int mode)
  */
 void InspROLOCControllerDbus::rolocSetFrequency(int freq)
 {
-    qCritical() << "request to set the freq to " << freq; // TODO test and remove
+    qCritical() << "request to set the freq to " << getString(freq); // TODO test and remove
 
     ROLOC::eLINEFINDER_FREQ rolocFreq = getFreq(freq);
 

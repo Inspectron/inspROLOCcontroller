@@ -7,9 +7,10 @@
 
 namespace {
 
-    const quint8  I2C_BUS                                   =      1;
-    const quint8  LINEFINDER_I2C_HW_BASE_ADDRESS            =  (0xFA >> 1);
-    const qint16  LINEFINDER_I2C_ID                         =  0x0102;
+    const quint8  I2C_BUS                                   =     1;
+    const quint8  LINEFINDER_I2C_HW_BASE_ADDRESS            = (0xFA >> 1);
+    const qint16  LINEFINDER_I2C_ID                         = 0x0102;
+    const qint16  LINEFINDER_AUTOMATIC_GAIN                 = 0x400;
 
     // TODO none of these dec-> hex values are correct
     const int    LINEFINDER_DEPTH_OR_CAL_TEST_DATA_RETURNED = 4;  // 0x0010;
@@ -23,7 +24,7 @@ namespace {
 
     const int    LINEFINDER_NO_DATA                         = 0xFFFF;
 
-    const int    TIMER_DATA_POLLING_PERIOD                  = 500;          // period between data polls in ms
+    const int    TIMER_DATA_POLLING_PERIOD                  = 5000;          // period between data polls in ms
     const int    TIMER_3SECONDS                             = 3000;
 }
 
@@ -83,6 +84,8 @@ void ROLOCcontroller::init()
                      this,  SLOT(setVolumeHandler(ROLOC::eLINEFINDER_VOLUME)) );
     QObject::connect(&mDbusHandler,   SIGNAL(setParametersHandler(ROLOC::eLINEFINDER_MODE, ROLOC::eLINEFINDER_FREQ)),
                      this,  SLOT(setParametersHandler(ROLOC::eLINEFINDER_MODE, ROLOC::eLINEFINDER_FREQ)) );
+    QObject::connect(&mDbusHandler,   SIGNAL(requestSetFreq(ROLOC::eLINEFINDER_FREQ)), this, SLOT(setFrequencyHandler(ROLOC::eLINEFINDER_FREQ)) );
+    QObject::connect(&mDbusHandler,   SIGNAL(requestSetMode(ROLOC::eLINEFINDER_MODE)), this, SLOT(setModeHandler(ROLOC::eLINEFINDER_MODE))      );
 
 #if 0
     // TODO can this be removed ?
@@ -96,8 +99,10 @@ void ROLOCcontroller::init()
 void ROLOCcontroller::initROLOC()
 {
     qDebug() << "ROLOC plugged in. set volume and freq to defaults";
+    qDebug() << "--------------------- set volume ----------------------------"; // TODO remove
     rolocSetVolume(ROLOC::eVOLUME_OFF);
-    rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, ROLOC::eFREQ_512HZ_SONDE);
+    qDebug() << "--------------------- set params ----------------------------"; // TODO remove
+    rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, ROLOC::eFREQ_60HZ_PASSIVE);
 }
 
 /**
@@ -157,17 +162,17 @@ void ROLOCcontroller::pollROLOC()
     }
 #endif
 
-    if(mHardwarePresent && mbModeChangeComplete && mEnabled /*&& mNumSamples < N_MULTI_LF_DEPTH_DELTA*/)
+    if(mHardwarePresent /*&& mbModeChangeComplete && mEnabled*/ /*&& mNumSamples < N_MULTI_LF_DEPTH_DELTA*/) // TODO uncomment the block comment
     {
         qint16 rolocData = rolocGetData();
-        //qDebug() << "ROLOC DATA: " << rolocData;
+        qDebug() << "ROLOC DATA: " << rolocData; // TODO remove
 
         if(mCurrentMode == ROLOC::eMODE_GET_SIGNAL_STRENGTH)
         {
             // update the sig strength
             mROLOCsignalStrenth = rolocData;
 
-            qDebug() << "sig strength = " << mROLOCsignalStrenth; // TODO verify if is this working ?
+            //qDebug() << "sig strength = " << mROLOCsignalStrenth; // TODO verify if is this working ?
 
             // clear the depth measurements
             mDepthAccumulator.clear();
@@ -223,7 +228,6 @@ bool ROLOCcontroller::rolocHardwarePresent()
 {
     bool present = true;
     qint16 data;
-    // TODO fix this. the function should return a bool
 
     data = m_i2cBus.i2c_readWord(mI2cAddr, ROLOC::eCMD_GET_ID);
 
@@ -241,15 +245,23 @@ bool ROLOCcontroller::rolocHardwarePresent()
 }
 
 /**
- * @brief ROLOCcontroller::rolocGetData
- * @return
+ * @brief ROLOCcontroller::rolocGetData - get info data from the roloc
  */
 qint16 ROLOCcontroller::rolocGetData()
 {
     qint16 data;
     data = m_i2cBus.i2c_readWord(mI2cAddr, ROLOC::eCMD_INFO);
 
-    qDebug() << "raw data: " << hex << data;
+    //qDebug() << "raw data: " << hex << data;
+#if 1
+    // TODO this is a debug, since there is a data acquisition issue
+    if (data != 0)
+    {
+        qCritical() << "!!!!!!!!data is not zero!!!!!!!!!!!!!!";
+        qCritical() << "data = " << data;
+        qCritical() << "!!!!!!!!!!!!!!!!!!!!!!";
+    }
+#endif 
 
     if(data >= 0)
     {
@@ -285,11 +297,6 @@ qint16 ROLOCcontroller::rolocGetData()
             // set the arrowsS
             mRolocArrows.set( statusByte );
 
-            // oddly enough the device will provide multiple arrow indicators
-            // therefore we filter the results such that if the data is zero
-            // then indicate a center arrow, else priority to right arrow if left
-            // and right are true.  Old code for displaying the arrow was:
-            // e.g. screen = (mCenterArrow || mNoArrow || data == 0) ? dislay center arrow : ((mRightArrow) ? display rigth : display left
 #if DBG_BLOCK
             qDebug() << mRolocArrows.getString();
 #endif
@@ -308,10 +315,12 @@ qint16 ROLOCcontroller::rolocGetData()
  */
 void ROLOCcontroller::rolocSetParameters(ROLOC::eLINEFINDER_MODE mode, ROLOC::eLINEFINDER_FREQ frequency)
 {
-    int16_t data = 0x0400;  // TODO : WHAT IS THIS MAGIC NUMBER ?
+    // start w/ the automatic gain
+    int16_t data = LINEFINDER_AUTOMATIC_GAIN;
 
+    // add in the mode & frequency
     data |= (mode << 8);  // todo:: double check that the shift operation provides the correct results!
-    data |= frequency;    // TODO THIS WILL ACTUALY CLIP THE FREQ VALUE since its 16 bit.
+    data |= frequency;
 
     int status = m_i2cBus.i2c_writeWord(mI2cAddr, ROLOC::eCMD_INFO, data);
 
@@ -517,4 +526,22 @@ void ROLOCcontroller::setParametersHandler(ROLOC::eLINEFINDER_MODE mode, ROLOC::
 
     rolocSetParameters(mode, freq);
 #endif
+}
+
+/**
+ * @brief ROLOCcontroller::setFrequencyHandler - set the frequency of the roloc
+ * @param freq - frequency enum
+ */
+void ROLOCcontroller::setFrequencyHandler(ROLOC::eLINEFINDER_FREQ freq)
+{
+    rolocSetParameters(mCurrentMode, freq);
+}
+
+/**
+ * @brief ROLOCcontroller::setModeHandler - set the mode of the roloc
+ * @param mode - mode enum
+ */
+void ROLOCcontroller::setModeHandler(ROLOC::eLINEFINDER_MODE mode)
+{
+    rolocSetParameters(mode, mFrequency);
 }

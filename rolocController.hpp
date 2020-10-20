@@ -29,8 +29,10 @@ signals:
 
 public slots:
     void getDataReportHandler();
-    void setVolumeHandler(ROLOC::eLINEFINDER_VOLUME vol);
+    void setVolumeHandler    (ROLOC::eLINEFINDER_VOLUME vol);
     void setParametersHandler(ROLOC::eLINEFINDER_MODE mode, ROLOC::eLINEFINDER_FREQ freq);
+    void setFrequencyHandler (ROLOC::eLINEFINDER_FREQ freq);
+    void setModeHandler      (ROLOC::eLINEFINDER_MODE mode);
 
 private slots:
     void pollROLOC();
@@ -48,10 +50,6 @@ private:
     void rolocSetVolume(ROLOC::eLINEFINDER_VOLUME vol);
     void rolocSetParameters(ROLOC::eLINEFINDER_MODE mode, ROLOC::eLINEFINDER_FREQ frequency);
     qint16 rolocGetData();
-    ROLOC_DBUS_API::eROLOC_FREQUENCY getFrequencyDBUS();
-    ROLOC_DBUS_API::eROLOC_MODE getModeDBUS();
-    QString getString(ROLOC_DBUS_API::eROLOC_MODE mode);
-    QString getString(ROLOC_DBUS_API::eROLOC_FREQUENCY freq);
 
     i2c m_i2cBus;
     quint8 mI2cAddr;
@@ -73,30 +71,6 @@ private:
     QTimer *mpRolocDataPollingTimer;
 };
 
-/**
- * @brief ROLOCcontroller::getString - convert dbus roloc mode to a string
- */
-inline QString ROLOCcontroller::getString(ROLOC_DBUS_API::eROLOC_MODE mode)
-{
-    return (mode == ROLOC_DBUS_API::eROLOC_MODE_OFF                   ? "mode off"          :
-           (mode == ROLOC_DBUS_API::eROLOC_MODE_GET_SIGNAL_STRENGTH   ? "mode sig strength" :
-           (mode == ROLOC_DBUS_API::eROLOC_MODE_GET_DEPTH_MEASUREMENT ? "mode depth meas"   :
-           (mode == ROLOC_DBUS_API::eROLOC_MODE_CALIBRATION           ? "mode cal"          :
-           (mode == ROLOC_DBUS_API::eROLOC_MODE_CALIBRATION_TEST      ? "mode cal test"     :
-           (mode == ROLOC_DBUS_API::eROLOC_MODE_BALANCE               ? "mode balance"      : "???" ))))));
-}
 
-/**
- * @brief ROLOCcontroller::getString - convert dbus roloc freq to a string
- */
-inline QString ROLOCcontroller::getString(ROLOC_DBUS_API::eROLOC_FREQUENCY freq)
-{
-    return (freq == ROLOC_DBUS_API::eROLOC_FREQ_512HZ_SONDE     ? "512hz sonde"     :
-           (freq == ROLOC_DBUS_API::eROLOC_FREQ_640HZ_SONDE     ? "640hz sonde"     :
-           (freq == ROLOC_DBUS_API::eROLOC_FREQ_50HZ_PASSIVE    ? "50hz passive"    :
-           (freq == ROLOC_DBUS_API::eROLOC_FREQ_60HZ_PASSIVE    ? "60hz passive"    :
-           (freq == ROLOC_DBUS_API::eROLOC_FREQ_32_5KHZ_ACTIVE  ? "32.5khz active"  :
-           (freq == ROLOC_DBUS_API::eROLOC_FREQ_32_5KHZ_PASSIVE ? "32.5khz passive" : "???" ))))));
-}
 
 #endif // RTSPSERVER_HPP
