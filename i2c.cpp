@@ -293,11 +293,13 @@ int i2c::i2c_writeWord(char hw_address, char address, int16_t data)
     file = open_i2c_dev(m_i2c_dev, filename, sizeof(filename), 0);
     if (file < 0)
     {
+        mI2cMutex.unlock();
         return -1;
     }
 
     if (ioctl(file, I2C_SLAVE, hw_address) < 0)
     {
+        mI2cMutex.unlock();
         fprintf(stderr, "Error: Could not set address to 0x%02x: %s\n", address, strerror(errno));
         return -errno;
     }
@@ -319,9 +321,11 @@ int i2c::i2c_writeWord(char hw_address, char address, int16_t data)
     {
         fprintf(stderr, "i2c_write error, dev = %d, addr = 0x%02X, data = 0x%02X, err(%d) = %s\n", m_i2c_dev, address, data, errno, strerror(errno));
     }
+
     if(reTries >= 3)
     {
         close(file);
+        mI2cMutex.unlock();
         return -2;
     }
 
