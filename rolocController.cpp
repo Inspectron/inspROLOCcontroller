@@ -24,7 +24,7 @@ namespace {
 
     const int    LINEFINDER_NO_DATA                         = 0xFFFF;
 
-    const int    TIMER_DATA_POLLING_PERIOD                  = 5000;          // period between data polls in ms
+    const int    TIMER_DATA_POLLING_PERIOD                  = 1000;          // period between data polls in ms
     const int    TIMER_3SECONDS                             = 3000;
 }
 
@@ -33,20 +33,18 @@ namespace {
  */
 ROLOCcontroller::ROLOCcontroller()
 : m_i2cBus()
-, mI2cAddr(0)
+, mI2cAddr(LINEFINDER_I2C_HW_BASE_ADDRESS)
 , mDbusHandler(*new InspROLOCControllerDbus())
-, mEnabled(false)
-, mHardwarePresent(false)
 , mCurrentMode(ROLOC::eMODE_GET_SIGNAL_STRENGTH)
 , mROLOCsignalStrenth(0)
 , mROLOCdepthMeasurement(0.0)
 , mCurrVolume(ROLOC::eVOLUME_OFF)
 , mFrequency(ROLOC::eFREQ_512HZ_SONDE)
-, mbModeChangeComplete(true)
 , mNumSamples(0)
 , mDepthAccumulator()
 , mRolocArrows(*new ROLOCArrows())
 , mpRolocDataPollingTimer(NULL)
+, mCurrentState(ROLOC::eSTATE_DISCONNECTED)
 {
 }
 
@@ -65,7 +63,6 @@ void ROLOCcontroller::init()
 {
     // init the i2c
     m_i2cBus.i2c_setDevice(I2C_BUS);
-    mI2cAddr = (LINEFINDER_I2C_HW_BASE_ADDRESS);
 
     // init dbus
     mDbusHandler.init();
@@ -99,32 +96,24 @@ void ROLOCcontroller::init()
 void ROLOCcontroller::initROLOC()
 {
     qDebug() << "ROLOC plugged in. set volume and freq to defaults";
-    qDebug() << "--------------------- set volume ----------------------------"; // TODO remove
     rolocSetVolume(ROLOC::eVOLUME_OFF);
-    qDebug() << "--------------------- set params ----------------------------"; // TODO remove
     rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, ROLOC::eFREQ_60HZ_PASSIVE);
+
+    // move to the next state
+    rolocBusy(ROLOC::eSTATE_OPERATING);
 }
 
 /**
- * @brief ROLOCcontroller::start - Start a mode change ? and just delay everything for a bit ?
+ * @brief ROLOCcontroller::rolocBusy - Start a mode change, when the timer is complete it will transition to the next state
  */
-void ROLOCcontroller::startModeChange()
+void ROLOCcontroller::rolocBusy(ROLOC::eSTATE nextState)
 {       
-    mbModeChangeComplete = false;
-    mEnabled             = true;
-
-    QTimer::singleShot(TIMER_3SECONDS, [&]()
+    mCurrentState = ROLOC::eSTATE_BUSY;
+    QTimer::singleShot(TIMER_3SECONDS, [&, nextState]()
     {
-        mbModeChangeComplete = true;
-        qDebug() << "3.5 second timer expired.  Mode Change Complete";
+        qDebug() << "3.0 second timer expired.  Mode Change Complete ";
+        mCurrentState = nextState;
     });
-}
-
-// TODO what does this mean? two bools are being used for one purpose. it can be a state or bool mbIsBusy
-void ROLOCcontroller::stop()
-{
-    mbModeChangeComplete = false;
-    mEnabled             = false;
 }
 
 /**
@@ -132,94 +121,114 @@ void ROLOCcontroller::stop()
  */
 void ROLOCcontroller::pollROLOC()
 {
-    // update hardware existence
-    bool present = rolocHardwarePresent();
+#if DBG_BLOCK || 1
+    static ROLOC::eSTATE prevState = ROLOC::eSTATE_DISCONNECTED;
 
-    // roloc was turned on/plugged in
-    if (!mHardwarePresent && present)
+    if (prevState != mCurrentState)
     {
-        initROLOC();
-    }
-
-    mHardwarePresent = present;
-
-
-    // TODO figure this out
-#if 0
-    bool hw = mHardwarePresent;
-
-    rolocHardwarePresent();
-    if(mHardwarePresent != hw)
-    {
-        if(mHardwarePresent)
-        {
-            start();
-        }
-        else
-        {
-            stop();
-        }
+        qDebug() << "state change " << getString(prevState) << "--->" << getString(mCurrentState);
+        prevState = mCurrentState;
     }
 #endif
 
-    if(mHardwarePresent /*&& mbModeChangeComplete && mEnabled*/ /*&& mNumSamples < N_MULTI_LF_DEPTH_DELTA*/) // TODO uncomment the block comment
+    if (mCurrentState != ROLOC::eSTATE_BUSY)
     {
-        qint16 rolocData = rolocGetData();
-        qDebug() << "ROLOC DATA: " << rolocData; // TODO remove
+        // update hardware existence
+        bool present = rolocHardwarePresent();
 
-        if(mCurrentMode == ROLOC::eMODE_GET_SIGNAL_STRENGTH)
+        if (present)
         {
-            // update the sig strength
-            mROLOCsignalStrenth = rolocData;
-
-            //qDebug() << "sig strength = " << mROLOCsignalStrenth; // TODO verify if is this working ?
-
-            // clear the depth measurements
-            mDepthAccumulator.clear();
+            if (mCurrentState == ROLOC::eSTATE_DISCONNECTED)
+            {
+                qDebug() << "roloc plugged in";
+                rolocBusy(ROLOC::eSTATE_INITIALIZING);
+            }
         }
         else
         {
-            mDepthAccumulator.append(rolocData);
-            mNumSamples++;
-
-            if(mNumSamples > N_MULTI_LF_DEPTH_SAMPLE)
-            {
-                QList<quint8> acceptedDepthReadings;
-                float scaleOfElimination = (float)N_MULTI_LF_DEPTH_DELTA;
-
-                double mean = getMean(mDepthAccumulator);
-                double stdDev = qSqrt(getVariance(mDepthAccumulator));
-
-                qDebug() << "Mean: " << mean;
-                qDebug() << "Standard Dev.: " << stdDev;
-
-                for(quint8 i = 0; i < mDepthAccumulator.count(); i++)
-                {
-                    quint8 isLessThanLowerBound = mDepthAccumulator.at(i) < mean - stdDev * scaleOfElimination;
-                    quint8 isGreaterThanUpperBound = mDepthAccumulator.at(i) > mean + stdDev * scaleOfElimination;
-                    quint8 isOutOfBounds = isLessThanLowerBound || isGreaterThanUpperBound;
-
-                    if(!isOutOfBounds)
-                    {
-                        acceptedDepthReadings.append(mDepthAccumulator.at(i));
-                    }
-                }
-
-                double finalReading = getMean(acceptedDepthReadings);
-                qDebug() << finalReading;
-                mROLOCdepthMeasurement = finalReading;
-            }
+            // roloc is disconnected
+            mCurrentState = ROLOC::eSTATE_DISCONNECTED;
         }
-        sendDataReport();
+    }
+
+    switch (mCurrentState)
+    {
+    case ROLOC::eSTATE_BUSY:
+        // just keep waiting
+        break;
+    case ROLOC::eSTATE_INITIALIZING:
+        initROLOC();
+        break;
+    case ROLOC::eSTATE_OPERATING:
+        processRolocData();
+        break;
+    case ROLOC::eSTATE_DISCONNECTED:
+    default:
+        // do nothing.
+        break;
     }
 }
 
-// TODO cleaner way to implement mode change
-void ROLOCcontroller::modeChangeComplete()
+/**
+ * @brief ROLOCcontroller::processRolocData - get and process the roloc data
+ */
+void ROLOCcontroller::processRolocData()
 {
+#if 0
+    // TODO keep this for records with the accumulator
+    if(mHardwarePresent /*&& mbModeChangeComplete */ /*&& mNumSamples < N_MULTI_LF_DEPTH_DELTA*/) // TODO uncomment the block comment
+#endif
+    qint16 rolocData = rolocGetData();
+    qDebug() << "ROLOC DATA: " << rolocData; // TODO remove
 
+#if 0
+    // TODO uncomment when i see real data coming out
+    if(mCurrentMode == ROLOC::eMODE_GET_SIGNAL_STRENGTH)
+    {
+        // update the sig strength
+        mROLOCsignalStrenth = rolocData;
+
+        //qDebug() << "sig strength = " << mROLOCsignalStrenth; // TODO verify if is this working ?
+
+        // clear the depth measurements
+        mDepthAccumulator.clear();
+    }
+    else
+    {
+        mDepthAccumulator.append(rolocData);
+        mNumSamples++;
+
+        if(mNumSamples > N_MULTI_LF_DEPTH_SAMPLE)
+        {
+            QList<quint8> acceptedDepthReadings;
+            float scaleOfElimination = (float)N_MULTI_LF_DEPTH_DELTA;
+
+            double mean = getMean(mDepthAccumulator);
+            double stdDev = qSqrt(getVariance(mDepthAccumulator));
+
+            qDebug() << "Mean: " << mean;
+            qDebug() << "Standard Dev.: " << stdDev;
+
+            for(quint8 i = 0; i < mDepthAccumulator.count(); i++)
+            {
+                quint8 isLessThanLowerBound = mDepthAccumulator.at(i) < mean - stdDev * scaleOfElimination;
+                quint8 isGreaterThanUpperBound = mDepthAccumulator.at(i) > mean + stdDev * scaleOfElimination;
+                quint8 isOutOfBounds = isLessThanLowerBound || isGreaterThanUpperBound;
+
+                if(!isOutOfBounds)
+                {
+                    acceptedDepthReadings.append(mDepthAccumulator.at(i));
+                }
+            }
+
+            double finalReading = getMean(acceptedDepthReadings);
+            qDebug() << finalReading;
+            mROLOCdepthMeasurement = finalReading;
+        }
+    }
+    sendDataReport();
+#endif
 }
-
 
 /**
  * @brief ROLOCcontroller::rolocHardwarePresent - check if the roloc hardware is attached
@@ -337,6 +346,7 @@ void ROLOCcontroller::rolocSetParameters(ROLOC::eLINEFINDER_MODE mode, ROLOC::eL
 
 #if 0
     // TODO figure out what this is doing
+    // TODO trigger the "busy" state if the mode changed
     if(mode != mCurrentMode || mEnabled == false)
     {
         mCurrentMode = mode;
@@ -423,7 +433,7 @@ void ROLOCcontroller::sendDataReport()
             mROLOCsignalStrenth,
             mROLOCdepthMeasurement,
             mRolocArrows.getDBusValue(),
-            mHardwarePresent);
+            (mCurrentState != ROLOC::eSTATE_DISCONNECTED)); // TODO switch the dbus signal to an enum
 }
 
 // ===========================================

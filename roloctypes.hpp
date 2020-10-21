@@ -41,6 +41,14 @@ namespace ROLOC
         eFREQ_32_5KHZ_ACTIVE               = 0x4000, // (8 << 11);
         eFREQ_32_5KHZ_PASSIVE              = 0x4800, // (9 << 11);
     };
+
+    enum eSTATE
+    {
+        eSTATE_DISCONNECTED,    // nothing is connected
+        eSTATE_OPERATING,       // currently operating
+        eSTATE_INITIALIZING,    // initializing the roloc after plug in
+        eSTATE_BUSY             // busy between operations
+    };
 }
 
 #endif // ROLOCTYPES_HPP

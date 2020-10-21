@@ -125,7 +125,7 @@ void InspROLOCControllerDbus::rolocSetParameters(int mode, int freq)
  */
 void InspROLOCControllerDbus::rolocSetMode(int mode)
 {
-    qCritical() << "request to set the mode to " << getString(mode); // TODO test and remove
+    qCritical() << "request to set the mode to " << getString(static_cast<ROLOC_DBUS_API::eROLOC_MODE>(mode)); // TODO test and remove
 
     ROLOC::eLINEFINDER_MODE rolocMode = getMode(mode);
 
@@ -144,7 +144,7 @@ void InspROLOCControllerDbus::rolocSetMode(int mode)
  */
 void InspROLOCControllerDbus::rolocSetFrequency(int freq)
 {
-    qCritical() << "request to set the freq to " << getString(freq); // TODO test and remove
+    qCritical() << "request to set the freq to " << getString(static_cast<ROLOC_DBUS_API::eROLOC_FREQUENCY>(freq)); // TODO test and remove
 
     ROLOC::eLINEFINDER_FREQ rolocFreq = getFreq(freq);
 

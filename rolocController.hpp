@@ -17,8 +17,7 @@ public:
     virtual ~ROLOCcontroller();
 
     void init();
-    void startModeChange();
-    void stop();
+    void rolocBusy(ROLOC::eSTATE nextState);
     void sendDataReport();
 
 signals:
@@ -36,7 +35,6 @@ public slots:
 
 private slots:
     void pollROLOC();
-    void modeChangeComplete();
 
 private:
     void initROLOC();
@@ -50,27 +48,39 @@ private:
     void rolocSetVolume(ROLOC::eLINEFINDER_VOLUME vol);
     void rolocSetParameters(ROLOC::eLINEFINDER_MODE mode, ROLOC::eLINEFINDER_FREQ frequency);
     qint16 rolocGetData();
+    void processRolocData();
+
+    QString getString(ROLOC::eSTATE state);
 
     i2c m_i2cBus;
     quint8 mI2cAddr;
     InspROLOCControllerDbus &mDbusHandler;
 
-    bool mEnabled;
-    bool mHardwarePresent;
     ROLOC::eLINEFINDER_MODE mCurrentMode;
     quint16 mROLOCsignalStrenth;
     double mROLOCdepthMeasurement;
     ROLOC::eLINEFINDER_VOLUME mCurrVolume;
     ROLOC::eLINEFINDER_FREQ mFrequency;
 
-    bool mbModeChangeComplete;
     quint8 mNumSamples;
     QList<quint8> mDepthAccumulator;
 
     ROLOCArrows &mRolocArrows;
     QTimer *mpRolocDataPollingTimer;
+    ROLOC::eSTATE mCurrentState;
 };
 
+
+/**
+ * @brief getString - convert the state to a string
+ */
+inline QString ROLOCcontroller::getString(ROLOC::eSTATE state)
+{
+    return (state == ROLOC::eSTATE_DISCONNECTED ? "DISCONNECTED" :
+           (state == ROLOC::eSTATE_OPERATING    ? "OPERATING"    :
+           (state == ROLOC::eSTATE_INITIALIZING ? "INITIALIZING" :
+           (state == ROLOC::eSTATE_BUSY         ? "BUSY"         : "???" ))));
+}
 
 
 #endif // RTSPSERVER_HPP
