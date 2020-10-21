@@ -1,5 +1,8 @@
 #include "i2c.hpp"
 
+// static members
+static QMutex mI2cMutex;
+
 i2c::i2c()
 {
 
@@ -162,12 +165,14 @@ int i2c::i2c_readWord(int hw_address, int address)
     if (file < 0)
     {
         fprintf(stderr, "Error: Could not open i2c device: %s errno: %s\n", filename, strerror(errno));
+        mI2cMutex.unlock();
         return -1;
     }
 
     if (ioctl(file, I2C_SLAVE, hw_address) < 0)
     {
         fprintf(stderr, "Error: Could not set address to 0x%02x: %s\n", address, strerror(errno));
+        mI2cMutex.unlock();
         return -errno;
     }
 
@@ -179,6 +184,7 @@ int i2c::i2c_readWord(int hw_address, int address)
     if(reTries >= 3)
     {
         close(file);
+        mI2cMutex.unlock();
         return -2;
     }
 
@@ -287,11 +293,13 @@ int i2c::i2c_writeWord(char hw_address, char address, int16_t data)
     file = open_i2c_dev(m_i2c_dev, filename, sizeof(filename), 0);
     if (file < 0)
     {
+        mI2cMutex.unlock();
         return -1;
     }
 
     if (ioctl(file, I2C_SLAVE, hw_address) < 0)
     {
+        mI2cMutex.unlock();
         fprintf(stderr, "Error: Could not set address to 0x%02x: %s\n", address, strerror(errno));
         return -errno;
     }
@@ -313,9 +321,11 @@ int i2c::i2c_writeWord(char hw_address, char address, int16_t data)
     {
         fprintf(stderr, "i2c_write error, dev = %d, addr = 0x%02X, data = 0x%02X, err(%d) = %s\n", m_i2c_dev, address, data, errno, strerror(errno));
     }
+
     if(reTries >= 3)
     {
         close(file);
+        mI2cMutex.unlock();
         return -2;
     }
 

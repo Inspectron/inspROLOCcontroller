@@ -38,7 +38,6 @@ public:
     int  i2c_writeWord(char hw_address, char address, int16_t data);
 
 private:
-    QMutex mI2cMutex;
     int m_i2c_dev;
 
     int open_i2c_dev(int i2cbus, char *filename, size_t size, int quiet);

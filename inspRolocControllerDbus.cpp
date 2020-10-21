@@ -70,13 +70,17 @@ void InspROLOCControllerDbus::sendDataReport(
     ROLOC::eLINEFINDER_FREQ frequency,
     int siglvl,
     double depth,
-    int arrow,
+    ROLOC::eLINEFINDER_ARROW arrow,
     bool isPresent)
 {
 #if DBG_BLOCK
     qDebug("DBus sending report");
 #endif
-    emit rolocUpdateDataReport(getModeDBUS(mode), getFrequencyDBUS(frequency), siglvl, depth, arrow, isPresent);
+    emit rolocUpdateDataReport(getModeDBUS(mode), getFrequencyDBUS(frequency),
+                               siglvl,
+                               depth,
+                               arrow,
+                               isPresent);
 }
 
 // sends data preset signal dbus -> UI
@@ -104,8 +108,6 @@ void InspROLOCControllerDbus::rolocSetVolume(int lvl)
     }
 }
 
-// TODO you shouldnt have to force the same mode being sent. it should be split into two APIs
-
 // dbus methods UI -> roloc
 void InspROLOCControllerDbus::rolocSetParameters(int mode, int freq)
 {
@@ -127,7 +129,7 @@ void InspROLOCControllerDbus::rolocSetParameters(int mode, int freq)
  */
 void InspROLOCControllerDbus::rolocSetMode(int mode)
 {
-    qCritical() << "request to set the mode to " << mode; // TODO test and remove
+    qCritical() << "request to set the mode to " << getString(static_cast<ROLOC_DBUS_API::eROLOC_MODE>(mode)); // TODO test and remove
 
     ROLOC::eLINEFINDER_MODE rolocMode = getMode(mode);
 
@@ -146,7 +148,7 @@ void InspROLOCControllerDbus::rolocSetMode(int mode)
  */
 void InspROLOCControllerDbus::rolocSetFrequency(int freq)
 {
-    qCritical() << "request to set the freq to " << freq; // TODO test and remove
+    qCritical() << "request to set the freq to " << getString(static_cast<ROLOC_DBUS_API::eROLOC_FREQUENCY>(freq)); // TODO test and remove
 
     ROLOC::eLINEFINDER_FREQ rolocFreq = getFreq(freq);
 
