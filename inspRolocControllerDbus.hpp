@@ -81,7 +81,7 @@ public slots:
         ROLOC::eLINEFINDER_FREQ frequency,
         int siglvl,
         double depth,
-        int arrow,
+        ROLOC::eLINEFINDER_ARROW arrow,
         bool isPresent);
     void sendPresent(bool isPresent);
 

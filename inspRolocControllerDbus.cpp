@@ -70,13 +70,17 @@ void InspROLOCControllerDbus::sendDataReport(
     ROLOC::eLINEFINDER_FREQ frequency,
     int siglvl,
     double depth,
-    int arrow,
+    ROLOC::eLINEFINDER_ARROW arrow,
     bool isPresent)
 {
 #if DBG_BLOCK
     qDebug("DBus sending report");
 #endif
-    emit rolocUpdateDataReport(getModeDBUS(mode), getFrequencyDBUS(frequency), siglvl, depth, arrow, isPresent);
+    emit rolocUpdateDataReport(getModeDBUS(mode), getFrequencyDBUS(frequency),
+                               siglvl,
+                               depth,
+                               arrow,
+                               isPresent);
 }
 
 // sends data preset signal dbus -> UI

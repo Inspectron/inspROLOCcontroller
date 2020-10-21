@@ -5,7 +5,7 @@
 #include <QTimer>
 #include "i2c.hpp"
 #include "inspRolocControllerDbus.hpp"
-#include "rolocarrows.hpp"
+#include "rolocinfopacket.hpp"
 #include "roloctypes.hpp"
 
 class ROLOCcontroller
@@ -47,7 +47,7 @@ private:
     bool rolocHardwarePresent();
     void rolocSetVolume(ROLOC::eLINEFINDER_VOLUME vol);
     void rolocSetParameters(ROLOC::eLINEFINDER_MODE mode, ROLOC::eLINEFINDER_FREQ frequency);
-    qint16 rolocGetData();
+    quint16 rolocGetData();
     void processRolocData();
 
     QString getString(ROLOC::eSTATE state);
@@ -65,7 +65,7 @@ private:
     quint8 mNumSamples;
     QList<quint8> mDepthAccumulator;
 
-    ROLOCArrows &mRolocArrows;
+    RolocInfoPacket &mInfoPacket;
     QTimer *mpRolocDataPollingTimer;
     ROLOC::eSTATE mCurrentState;
 };

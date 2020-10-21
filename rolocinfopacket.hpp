@@ -64,8 +64,9 @@ public:
     RolocInfoPacket();
     void set(unsigned short packet);
 
-    ROLOC_PACKET::eTYPE getType() { return mType; }
-    ROLOC::eLINEFINDER_ARROW getArrow() { return mArrow; }
+    ROLOC_PACKET::eTYPE getType()       { return mType;        }
+    ROLOC::eLINEFINDER_ARROW getArrow() { return mArrow;       }
+    unsigned char getData()             { return mPacket.data; }
 
     QString getString();
     QString getString(ROLOC_PACKET::eTYPE type);

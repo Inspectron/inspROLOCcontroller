@@ -42,7 +42,7 @@ ROLOCcontroller::ROLOCcontroller()
 , mFrequency(ROLOC::eFREQ_512HZ_SONDE)
 , mNumSamples(0)
 , mDepthAccumulator()
-, mRolocArrows(*new ROLOCArrows())
+, mInfoPacket(*new RolocInfoPacket())
 , mpRolocDataPollingTimer(NULL)
 , mCurrentState(ROLOC::eSTATE_DISCONNECTED)
 {
@@ -53,7 +53,7 @@ ROLOCcontroller::ROLOCcontroller()
  */
 ROLOCcontroller::~ROLOCcontroller()
 {
-    delete &mRolocArrows;
+    delete &mInfoPacket;
 }
 
 /**
@@ -256,21 +256,19 @@ bool ROLOCcontroller::rolocHardwarePresent()
 /**
  * @brief ROLOCcontroller::rolocGetData - get info data from the roloc
  */
-qint16 ROLOCcontroller::rolocGetData()
+quint16 ROLOCcontroller::rolocGetData()
 {
-    qint16 data;
-    data = m_i2cBus.i2c_readWord(mI2cAddr, ROLOC::eCMD_INFO);
+    // read i2c data
+    quint16 data = m_i2cBus.i2c_readWord(mI2cAddr, ROLOC::eCMD_INFO);
 
-    //qDebug() << "raw data: " << hex << data;
-#if 1
-    // TODO this is a debug, since there is a data acquisition issue
-    if (data != 0)
-    {
-        qCritical() << "!!!!!!!!data is not zero!!!!!!!!!!!!!!";
-        qCritical() << "data = " << data;
-        qCritical() << "!!!!!!!!!!!!!!!!!!!!!!";
-    }
-#endif 
+    // set the incoming data
+    mInfoPacket.set(data);
+
+    // debug print it out
+    qWarning().noquote() << mInfoPacket.getString();
+
+#if 0
+    // TODO keep as reference until I see the roloc working
 
     if(data >= 0)
     {
@@ -302,13 +300,6 @@ qint16 ROLOCcontroller::rolocGetData()
             data = data & 0x00FF;
             if(data > 240) data = 240;
             if(data <  10) data = 0;
-
-            // set the arrowsS
-            mRolocArrows.set( statusByte );
-
-#if DBG_BLOCK
-            qDebug() << mRolocArrows.getString();
-#endif
         }
     }
     else
@@ -317,6 +308,9 @@ qint16 ROLOCcontroller::rolocGetData()
     }
 
     return data;
+#endif
+
+    return mInfoPacket.getData();
 }
 
 /**
@@ -422,18 +416,13 @@ double ROLOCcontroller::getVariance(QList<quint8> values)
  */
 void ROLOCcontroller::sendDataReport()
 {
-#if DBG_BLOCK
-    qDebug("Report: mode=%d freq=%d signal=%d depth=%0.2f arrow=%d hw=%d",
-            mCurrentMode, mFrequency,
-            mROLOCsignalStrenth, mROLOCdepthMeasurement, getArrowDBUS(), mHardwarePresent);
-#endif
-            mDbusHandler.sendDataReport(
-            mCurrentMode,
-            mFrequency,
-            mROLOCsignalStrenth,
-            mROLOCdepthMeasurement,
-            mRolocArrows.getDBusValue(),
-            (mCurrentState != ROLOC::eSTATE_DISCONNECTED)); // TODO switch the dbus signal to an enum
+    mDbusHandler.sendDataReport(
+                mCurrentMode,
+                mFrequency,
+                mROLOCsignalStrenth,
+                mROLOCdepthMeasurement,
+                mInfoPacket.getArrow(),
+                (mCurrentState != ROLOC::eSTATE_DISCONNECTED)); // TODO switch the dbus signal to an enum
 }
 
 // ===========================================
