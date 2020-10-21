@@ -22,13 +22,15 @@ HEADERS += \
     i2c.hpp \
     include/inspcore.hpp \
     rolocarrows.hpp \
-    roloctypes.hpp
+    roloctypes.hpp \
+    rolocinfopacket.hpp
 
 SOURCES += main.cpp \
     inspRolocControllerDbus.cpp \
     rolocController.cpp \
     i2c.cpp \
-    rolocarrows.cpp
+    rolocarrows.cpp \
+    rolocinfopacket.cpp
 
 LIBS += -ludev
 unix {

@@ -42,6 +42,15 @@ namespace ROLOC
         eFREQ_32_5KHZ_PASSIVE              = 0x4800, // (9 << 11);
     };
 
+    // arrow types
+    enum eLINEFINDER_ARROW
+    {
+        eARROW_LEFT,
+        eARROW_CENTER,
+        eARROW_RIGHT
+    };
+
+    // operational states
     enum eSTATE
     {
         eSTATE_DISCONNECTED,    // nothing is connected

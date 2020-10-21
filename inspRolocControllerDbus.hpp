@@ -8,11 +8,9 @@ namespace ROLOC_DBUS_API
 {
     enum eROLOC_ARROW
     {
-        eLEFT_ARROW,
-        eCENTER_ARROW,
-        eRIGHT_ARROW,
-        //
-        eROLOC_ARROW_MAX
+        eLEFT_ARROW   = ROLOC::eARROW_LEFT,
+        eCENTER_ARROW = ROLOC::eARROW_CENTER,
+        eRIGHT_ARROW  = ROLOC::eARROW_RIGHT,
     };
 
     enum eROLOC_MODE
