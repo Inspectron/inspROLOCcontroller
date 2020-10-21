@@ -68,7 +68,7 @@ public:
     ROLOC::eLINEFINDER_ARROW getArrow() { return mArrow;       }
     unsigned char getData()             { return mPacket.data; }
 
-    QString getString();
+    QString toString();
     QString getString(ROLOC_PACKET::eTYPE type);
 
 private:
@@ -78,9 +78,9 @@ private:
 };
 
 /**
- * @brief RolocInfoPacket::getString - convert this object to a string
+ * @brief RolocInfoPacket::toString - convert this object to a string
  */
-inline QString RolocInfoPacket::getString()
+inline QString RolocInfoPacket::toString()
 {
     QString arrowStr = (mArrow == ROLOC::eARROW_CENTER ? "(center)"  :
                        (mArrow == ROLOC::eARROW_LEFT   ? "<-- left"  :

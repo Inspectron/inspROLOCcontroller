@@ -265,7 +265,7 @@ quint16 ROLOCcontroller::rolocGetData()
     mInfoPacket.set(data);
 
     // debug print it out
-    qWarning().noquote() << mInfoPacket.getString();
+    qWarning().noquote() << mInfoPacket.toString();
 
 #if 0
     // TODO keep as reference until I see the roloc working

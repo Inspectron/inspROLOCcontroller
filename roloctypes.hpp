@@ -6,6 +6,7 @@ namespace ROLOC
     // modes of operation
     enum eLINEFINDER_MODE
     {
+        // TODO these should be changed to plain enums
         eMODE_INVALID                    =  -1,
         eMODE_GET_SIGNAL_STRENGTH        = (0x0000),
         eMODE_GET_DEPTH_MEASUREMENT      = (0x0002),
