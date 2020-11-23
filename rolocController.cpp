@@ -97,7 +97,7 @@ void ROLOCcontroller::initROLOC()
 {
     qDebug() << "ROLOC plugged in. set volume and freq to defaults";
     rolocSetVolume(ROLOC::eVOLUME_OFF);
-    rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, ROLOC::eFREQ_60HZ_PASSIVE);
+    rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, ROLOC::eFREQ_512HZ_SONDE);
 
     // move to the next state
     rolocBusy(ROLOC::eSTATE_OPERATING);
@@ -265,7 +265,7 @@ quint16 ROLOCcontroller::rolocGetData()
     mInfoPacket.set(data);
 
     // debug print it out
-    qWarning().noquote() << mInfoPacket.getString();
+    qWarning().noquote() << mInfoPacket.toString();
 
 #if 0
     // TODO keep as reference until I see the roloc working

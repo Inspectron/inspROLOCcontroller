@@ -68,26 +68,29 @@ public:
     ROLOC::eLINEFINDER_ARROW getArrow() { return mArrow;       }
     unsigned char getData()             { return mPacket.data; }
 
-    QString getString();
+    QString oldschoolData();
+    QString toString();
     QString getString(ROLOC_PACKET::eTYPE type);
 
 private:
+    unsigned short mUnalteredPacketData;
     ROLOC_PACKET::tPacket mPacket;
     ROLOC_PACKET::eTYPE mType;
     ROLOC::eLINEFINDER_ARROW mArrow;
 };
 
 /**
- * @brief RolocInfoPacket::getString - convert this object to a string
+ * @brief RolocInfoPacket::toString - convert this object to a string
  */
-inline QString RolocInfoPacket::getString()
+inline QString RolocInfoPacket::toString()
 {
     QString arrowStr = (mArrow == ROLOC::eARROW_CENTER ? "(center)"  :
                        (mArrow == ROLOC::eARROW_LEFT   ? "<-- left"  :
                        (mArrow == ROLOC::eARROW_RIGHT  ? "right -->" : "???")));
 
-    QString str = QString("packet: 0x%1\n")
-            .arg(mPacket.packetData, 4, 16, QChar('0'));
+    QString str = QString("packet: 0x%1 (unaltered pktdata: 0x%2)\n")
+            .arg(mPacket.packetData, 4, 16, QChar('0') )
+            .arg(mUnalteredPacketData, 4, 16, QChar('0') );
 
     str += QString("   type: %1\n").arg( getString(mType) );
     str += QString("   arrow: %1\n").arg(arrowStr);
@@ -96,6 +99,8 @@ inline QString RolocInfoPacket::getString()
     str += QString("   data = 0x%1 (%2)\n")
             .arg(mPacket.data, 2, 16, QChar('0'))
             .arg(QString::number(mPacket.data));
+
+    //str += oldschoolData();
 
     return str;
 }
