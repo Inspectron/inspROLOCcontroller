@@ -97,7 +97,7 @@ void ROLOCcontroller::initROLOC()
 {
     qDebug() << "ROLOC plugged in. set volume and freq to defaults";
     rolocSetVolume(ROLOC::eVOLUME_OFF);
-    rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, ROLOC::eFREQ_60HZ_PASSIVE);
+    rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, ROLOC::eFREQ_512HZ_SONDE);
 
     // move to the next state
     rolocBusy(ROLOC::eSTATE_OPERATING);
