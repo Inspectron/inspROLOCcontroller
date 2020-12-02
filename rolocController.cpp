@@ -3,7 +3,7 @@
 #include "rolocController.hpp"
 #include "inspRolocControllerDbus.hpp"
 
-#define DBG_BLOCK 0
+#define DBG_BLOCK 1
 
 namespace {
 
@@ -83,11 +83,6 @@ void ROLOCcontroller::init()
                      this,  SLOT(setParametersHandler(ROLOC::eLINEFINDER_MODE, ROLOC::eLINEFINDER_FREQ)) );
     QObject::connect(&mDbusHandler,   SIGNAL(requestSetFreq(ROLOC::eLINEFINDER_FREQ)), this, SLOT(setFrequencyHandler(ROLOC::eLINEFINDER_FREQ)) );
     QObject::connect(&mDbusHandler,   SIGNAL(requestSetMode(ROLOC::eLINEFINDER_MODE)), this, SLOT(setModeHandler(ROLOC::eLINEFINDER_MODE))      );
-
-#if 0
-    // TODO can this be removed ?
-    stop();    // don't start until active mode set
-#endif
 }
 
 /**
@@ -121,7 +116,8 @@ void ROLOCcontroller::rolocBusy(ROLOC::eSTATE nextState)
  */
 void ROLOCcontroller::pollROLOC()
 {
-#if DBG_BLOCK || 1
+#if DBG_BLOCK
+    // dbg print out state changes
     static ROLOC::eSTATE prevState = ROLOC::eSTATE_DISCONNECTED;
 
     if (prevState != mCurrentState)
@@ -181,8 +177,6 @@ void ROLOCcontroller::processRolocData()
     qint16 rolocData = rolocGetData();
     qDebug() << "ROLOC DATA: " << rolocData; // TODO remove
 
-#if 0
-    // TODO uncomment when i see real data coming out
     if(mCurrentMode == ROLOC::eMODE_GET_SIGNAL_STRENGTH)
     {
         // update the sig strength
@@ -227,7 +221,6 @@ void ROLOCcontroller::processRolocData()
         }
     }
     sendDataReport();
-#endif
 }
 
 /**
@@ -264,8 +257,10 @@ quint16 ROLOCcontroller::rolocGetData()
     // set the incoming data
     mInfoPacket.set(data);
 
-    // debug print it out
+#if DBG_BLOCK
+    // debug print out the packet
     qWarning().noquote() << mInfoPacket.toString();
+#endif
 
 #if 0
     // TODO keep as reference until I see the roloc working
