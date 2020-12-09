@@ -35,6 +35,7 @@ public slots:
 
 private slots:
     void pollROLOC();
+    void onFreqSetTimerExpired();
 
 private:
     void initROLOC();
@@ -51,6 +52,7 @@ private:
     void processRolocData();
 
     QString getString(ROLOC::eSTATE state);
+    QString getString(ROLOC::eLINEFINDER_FREQ freq);
 
     i2c m_i2cBus;
     quint8 mI2cAddr;
@@ -68,6 +70,9 @@ private:
     RolocInfoPacket &mInfoPacket;
     QTimer *mpRolocDataPollingTimer;
     ROLOC::eSTATE mCurrentState;
+    QTimer *mpFreqencySetTimer;
+    ROLOC::eLINEFINDER_FREQ mPendingFreq;
+
 };
 
 
@@ -82,5 +87,17 @@ inline QString ROLOCcontroller::getString(ROLOC::eSTATE state)
            (state == ROLOC::eSTATE_BUSY         ? "BUSY"         : "???" ))));
 }
 
+/**
+ * @brief HMIMain::getString - convert freq to a string
+ */
+inline QString ROLOCcontroller::getString(ROLOC::eLINEFINDER_FREQ freq)
+{
+    return (freq == ROLOC::eFREQ_512HZ_SONDE     ? "512 Hz"           :
+           (freq == ROLOC::eFREQ_640HZ_SONDE     ? "640 Hz"           :
+           (freq == ROLOC::eFREQ_50HZ_PASSIVE    ? "50 Hz passive"    :
+           (freq == ROLOC::eFREQ_60HZ_PASSIVE    ? "60 Hz passive"    :
+           (freq == ROLOC::eFREQ_32_5KHZ_ACTIVE  ? "32.5 kHz active"  :
+           (freq == ROLOC::eFREQ_32_5KHZ_PASSIVE ? "32.5 kHz passive" : "???" ))))));
+}
 
 #endif // RTSPSERVER_HPP

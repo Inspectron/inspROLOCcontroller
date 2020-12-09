@@ -2,8 +2,7 @@
 #include <QtMath>
 #include "rolocController.hpp"
 #include "inspRolocControllerDbus.hpp"
-
-#define DBG_BLOCK 1
+#define DBG_BLOCK 0
 
 namespace {
 
@@ -26,6 +25,7 @@ namespace {
 
     const int    TIMER_DATA_POLLING_PERIOD                  = 1000;          // period between data polls in ms
     const int    TIMER_3SECONDS                             = 3000;
+    const int    FREQ_SET_TIMER_INTERVAL                    = 100;
 }
 
 /**
@@ -45,7 +45,12 @@ ROLOCcontroller::ROLOCcontroller()
 , mInfoPacket(*new RolocInfoPacket())
 , mpRolocDataPollingTimer(NULL)
 , mCurrentState(ROLOC::eSTATE_DISCONNECTED)
+, mpFreqencySetTimer(NULL)
+, mPendingFreq(mFrequency)
 {
+    qCritical() << "------------------------";
+    qCritical() << "ROLOC CONTROLLER WITH ADDRESS " << LINEFINDER_I2C_HW_BASE_ADDRESS;
+    qCritical() << "------------------------";
 }
 
 /**
@@ -54,6 +59,8 @@ ROLOCcontroller::ROLOCcontroller()
 ROLOCcontroller::~ROLOCcontroller()
 {
     delete &mInfoPacket;
+    delete mpRolocDataPollingTimer;
+    delete mpFreqencySetTimer;
 }
 
 /**
@@ -66,6 +73,11 @@ void ROLOCcontroller::init()
 
     // init dbus
     mDbusHandler.init();
+
+    // init the freq change timer
+    mpFreqencySetTimer = new QTimer();
+    QObject::connect(mpFreqencySetTimer, SIGNAL(timeout()), this, SLOT(onFreqSetTimerExpired()) );
+    mpFreqencySetTimer->setInterval(FREQ_SET_TIMER_INTERVAL);
 
     // init the polling timer
     mpRolocDataPollingTimer = new QTimer();
@@ -175,7 +187,6 @@ void ROLOCcontroller::processRolocData()
     if(mHardwarePresent /*&& mbModeChangeComplete */ /*&& mNumSamples < N_MULTI_LF_DEPTH_DELTA*/) // TODO uncomment the block comment
 #endif
     qint16 rolocData = rolocGetData();
-    qDebug() << "ROLOC DATA: " << rolocData; // TODO remove
 
     if(mCurrentMode == ROLOC::eMODE_GET_SIGNAL_STRENGTH)
     {
@@ -260,49 +271,6 @@ quint16 ROLOCcontroller::rolocGetData()
 #if DBG_BLOCK
     // debug print out the packet
     qWarning().noquote() << mInfoPacket.toString();
-#endif
-
-#if 0
-    // TODO keep as reference until I see the roloc working
-
-    if(data >= 0)
-    {
-        quint8 statusByte = ((data & 0xFF00) >> 8);
-
-        quint8 depthORCalTest = (statusByte >> LINEFINDER_DEPTH_OR_CAL_TEST_DATA_RETURNED) & 1; //  (statusByte & (LINEFINDER_DEPTH_OR_CAL_TEST_DATA_RETURNED));
-        quint8 calORBalance   = (statusByte >> LINEFINDER_CAL_OR_BALANCE_DATA_RETURNED) & 1;    //  (statusByte & (LINEFINDER_CAL_OR_BALANCE_DATA_RETURNED   ));
-        quint8 ping           = (statusByte >> LINEFINDER_PING_DATA_RETURNED) & 1;              //  (statusByte & (LINEFINDER_PING_DATA_RETURNED             ));
-        quint8 specialDataReceived = (depthORCalTest || calORBalance || ping);
-
-        Q_UNUSED(specialDataReceived);
-
-#if DBG_BLOCK
-        qDebug() << "statusByte         : " << statusByte;
-        qDebug() << "depthORCalTest     : " << depthORCalTest;
-        qDebug() << "calORBalance       : " << calORBalance;
-        qDebug() << "ping               : " << ping;
-        qDebug() << "specialDataReceived: " << specialDataReceived;
-#endif
-
-        if(depthORCalTest || calORBalance)
-        {
-            data = data & 0x00FF;
-        }
-        else
-        {
-            // this is either the sig strength or the depth
-            // this range limits the values 0 -> 0xF9 (240)
-            data = data & 0x00FF;
-            if(data > 240) data = 240;
-            if(data <  10) data = 0;
-        }
-    }
-    else
-    {
-        qWarning() << "Could not read ROLOC I2C Status";
-    }
-
-    return data;
 #endif
 
     return mInfoPacket.getData();
@@ -448,78 +416,7 @@ void ROLOCcontroller::setVolumeHandler(ROLOC::eLINEFINDER_VOLUME vol)
  */
 void ROLOCcontroller::setParametersHandler(ROLOC::eLINEFINDER_MODE mode, ROLOC::eLINEFINDER_FREQ freq)
 {
-#if 0
-    qint8 hwmode;
-    qint16 hwfreq;
-
-    // TODO: converting enums back and forth is sloppy, the conversion can be done in dbus or not at all
-    switch(mode)
-    {
-    case ROLOC_DBUS_API::eROLOC_MODE_GET_SIGNAL_STRENGTH:
-        hwmode = ROLOC::eMODE_GET_SIGNAL_STRENGTH;
-        break;
-    case ROLOC_DBUS_API::eROLOC_MODE_GET_DEPTH_MEASUREMENT:
-        hwmode = ROLOC::eMODE_GET_DEPTH_MEASUREMENT;
-        break;
-    case ROLOC_DBUS_API::eROLOC_MODE_CALIBRATION:
-        hwmode = ROLOC::eMODE_CALIBRATION;
-        break;
-    case ROLOC_DBUS_API::eROLOC_MODE_CALIBRATION_TEST:
-        hwmode = ROLOC::eMODE_CALIBRATION_TEST;
-        break;
-    case ROLOC_DBUS_API::eROLOC_MODE_BALANCE:
-        hwmode = ROLOC::eMODE_BALANCE;
-        break;
-    case ROLOC_DBUS_API::eROLOC_MODE_NOCHANGE:
-    default:
-        hwmode = mCurrentMode;
-        break;
-    }
-
-    switch(freq)
-    {
-    case ROLOC_DBUS_API::eROLOC_FREQ_512HZ_SONDE:
-        hwfreq = ROLOC::eFREQ_512HZ_SONDE;
-        break;
-    case ROLOC_DBUS_API::eROLOC_FREQ_640HZ_SONDE:
-        hwfreq = ROLOC::eFREQ_640HZ_SONDE;
-        break;
-    case ROLOC_DBUS_API::eROLOC_FREQ_50HZ_PASSIVE:
-        hwfreq = ROLOC::eFREQ_50HZ_PASSIVE;
-        break;
-    case ROLOC_DBUS_API::eROLOC_FREQ_60HZ_PASSIVE:
-        hwfreq = ROLOC::eFREQ_60HZ_PASSIVE;
-        break;
-    case ROLOC_DBUS_API::eROLOC_FREQ_32_5KHZ_ACTIVE:
-        hwfreq = ROLOC::eFREQ_32_5KHZ_ACTIVE;
-        break;
-    case ROLOC_DBUS_API::eROLOC_FREQ_32_5KHZ_PASSIVE:
-        hwfreq = ROLOC::eFREQ_32_5KHZ_PASSIVE;
-        break;
-    case ROLOC_DBUS_API::eROLOC_FREQ_NOCHANGE:
-    default:
-        hwfreq = mFrequency;
-        break;
-    }
-
-    if(mode == ROLOC_DBUS_API::eROLOC_MODE_OFF)
-    {
-        stop();
-    }
-    else
-    {
-        // TODO remove
-        qCritical() << "request for mode: "
-                       << getString(static_cast<ROLOC_DBUS_API::eROLOC_MODE>(mode))
-                       << QString("--hwmode-->").arg(QString::number(hwmode, 16))
-                       << "@ freq "
-                       << getString(static_cast<ROLOC_DBUS_API::eROLOC_FREQUENCY>(freq))
-                       << QString("--hwfreq--> 0x%1").arg(QString::number(hwfreq, 16));
-    }
-#else
-
     rolocSetParameters(mode, freq);
-#endif
 }
 
 /**
@@ -528,8 +425,26 @@ void ROLOCcontroller::setParametersHandler(ROLOC::eLINEFINDER_MODE mode, ROLOC::
  */
 void ROLOCcontroller::setFrequencyHandler(ROLOC::eLINEFINDER_FREQ freq)
 {
-    rolocSetParameters(mCurrentMode, freq);
+    // set the pending, and star the hysteresis timer
+    mPendingFreq = freq;
+    mpFreqencySetTimer->start();
 }
+
+/**
+ * @brief ROLOCcontroller::onFreqSetTimerExpired - timer callback when we should set the frequency to ensure
+ * the ROLOC doesnt get mixed up
+ */
+void ROLOCcontroller::onFreqSetTimerExpired()
+{
+    if (mPendingFreq != mFrequency)
+    {
+        rolocSetParameters(mCurrentMode, mPendingFreq);
+    }
+
+    // stop the timer
+    mpFreqencySetTimer->stop();
+}
+
 
 /**
  * @brief ROLOCcontroller::setModeHandler - set the mode of the roloc
