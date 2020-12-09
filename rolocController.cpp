@@ -7,7 +7,7 @@
 namespace {
 
     const quint8  I2C_BUS                                   =     1;
-    const quint8  LINEFINDER_I2C_HW_BASE_ADDRESS            = (0xFA >> 1);
+    const quint8  LINEFINDER_I2C_HW_BASE_ADDRESS            = 8;//(0xFA >> 1);
     const qint16  LINEFINDER_I2C_ID                         = 0x0102;
     const qint16  LINEFINDER_AUTOMATIC_GAIN                 = 0x400;
 
