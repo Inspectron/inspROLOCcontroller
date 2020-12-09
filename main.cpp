@@ -10,7 +10,7 @@ int main(int argc, char *argv[])
     InspCore::setFormattedDebugOutput("inspROLOCcontroller");
 
     qDebug() << "-------------------------------";
-    qDebug() << "rolocController v11.23.2020";
+    qDebug() << "rolocController v09.12.2020";
     qDebug() << "-------------------------------";
 
     // start the core application

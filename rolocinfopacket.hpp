@@ -68,7 +68,6 @@ public:
     ROLOC::eLINEFINDER_ARROW getArrow() { return mArrow;       }
     unsigned char getData()             { return mPacket.data; }
 
-    QString oldschoolData();
     QString toString();
     QString getString(ROLOC_PACKET::eTYPE type);
 
@@ -99,8 +98,6 @@ inline QString RolocInfoPacket::toString()
     str += QString("   data = 0x%1 (%2)\n")
             .arg(mPacket.data, 2, 16, QChar('0'))
             .arg(QString::number(mPacket.data));
-
-    //str += oldschoolData();
 
     return str;
 }
