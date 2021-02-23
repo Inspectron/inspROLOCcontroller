@@ -246,7 +246,9 @@ bool ROLOCcontroller::rolocHardwarePresent()
 
     if(data != LINEFINDER_I2C_ID)
     {
+#if DBG_BLOCK
         qWarning() << "Could not read ID from ROLOC Hardware. data = " << data;
+#endif
         present = false;
     }
 
