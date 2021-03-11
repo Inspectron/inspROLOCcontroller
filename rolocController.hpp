@@ -3,10 +3,13 @@
 
 #include <QThread>
 #include <QTimer>
+#include <QQueue>
 #include "i2c.hpp"
 #include "inspRolocControllerDbus.hpp"
 #include "rolocinfopacket.hpp"
 #include "roloctypes.hpp"
+
+
 
 class ROLOCcontroller
 : public QObject
@@ -50,6 +53,7 @@ private:
     void rolocSetParameters(ROLOC::eLINEFINDER_MODE mode, ROLOC::eLINEFINDER_FREQ frequency);
     quint16 rolocGetData();
     void processRolocData();
+    bool evalValidity();
 
     QString getString(ROLOC::eSTATE state);
     QString getString(ROLOC::eLINEFINDER_FREQ freq);
@@ -72,7 +76,8 @@ private:
     ROLOC::eSTATE mCurrentState;
     QTimer *mpFreqencySetTimer;
     ROLOC::eLINEFINDER_FREQ mPendingFreq;
-
+    QQueue<bool>     i2cValid;
+    int mDisplayRetry = 0;
 };
 
 

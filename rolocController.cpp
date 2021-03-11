@@ -82,7 +82,9 @@ void ROLOCcontroller::init()
     // init the polling timer
     mpRolocDataPollingTimer = new QTimer();
     QObject::connect(mpRolocDataPollingTimer, SIGNAL(timeout()), this, SLOT(pollROLOC()));
-    mpRolocDataPollingTimer->setInterval(TIMER_DATA_POLLING_PERIOD);
+    //mpRolocDataPollingTimer->setInterval(TIMER_DATA_POLLING_PERIOD);
+    mpRolocDataPollingTimer->setInterval(500);
+
     mpRolocDataPollingTimer->start();
 
     // connect sigs/slots
@@ -96,6 +98,8 @@ void ROLOCcontroller::init()
     QObject::connect(&mDbusHandler,   SIGNAL(requestSetFreq(ROLOC::eLINEFINDER_FREQ)), this, SLOT(setFrequencyHandler(ROLOC::eLINEFINDER_FREQ)) );
     QObject::connect(&mDbusHandler,   SIGNAL(requestSetMode(ROLOC::eLINEFINDER_MODE)), this, SLOT(setModeHandler(ROLOC::eLINEFINDER_MODE))      );
 }
+
+
 
 /**
  * @brief ROLOCcontroller::initROLOC - init the roloc upon plugging in
@@ -118,7 +122,8 @@ void ROLOCcontroller::rolocBusy(ROLOC::eSTATE nextState)
     mCurrentState = ROLOC::eSTATE_BUSY;
     QTimer::singleShot(TIMER_3SECONDS, [&, nextState]()
     {
-        qDebug() << "3.0 second timer expired.  Mode Change Complete ";
+        qDebug() << "3.0 second timer expired.  Mode Change Complete nextState -> " << nextState;
+
         mCurrentState = nextState;
     });
 }
@@ -155,6 +160,8 @@ void ROLOCcontroller::pollROLOC()
         else
         {
             // roloc is disconnected
+            qDebug() << "roloc has been disconnected";
+
             mCurrentState = ROLOC::eSTATE_DISCONNECTED;
         }
     }
@@ -244,19 +251,86 @@ bool ROLOCcontroller::rolocHardwarePresent()
 
     data = m_i2cBus.i2c_readWord(mI2cAddr, ROLOC::eCMD_GET_ID);
 
+#if DBG_BLOCK
+    qDebug() << "rolocHardwarePresent: data --> "  <<  data;
+#endif
+
+    if(data != LINEFINDER_I2C_ID)
+    {
+         QTimer::singleShot(2500, [&]()
+         {
+             rolocSetVolume(ROLOC::eVOLUME_OFF);
+             rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, ROLOC::eFREQ_512HZ_SONDE);
+             data = m_i2cBus.i2c_readWord(mI2cAddr, ROLOC::eCMD_GET_ID);
+         });
+    }
+
     if(data != LINEFINDER_I2C_ID)
     {
 #if DBG_BLOCK
         qWarning() << "Could not read ID from ROLOC Hardware. data = " << data;
 #endif
         present = false;
+        i2cValid.enqueue(false);
+    } else
+    {
+#if DBG_BLOCK
+        qDebug() << "rolocHardwarePresent: *** The Data is Good ***";
+#endif
+
+        i2cValid.enqueue(true);
+        present = true;
     }
 
-    // udpate dbus
-    mDbusHandler.sendPresent(present);
+    if (i2cValid.size() == 7)
+    {
+        present = evalValidity();
+        i2cValid.dequeue();
+    }
+
+    if (!present)
+    {
+        mDisplayRetry++;
+        if (mDisplayRetry > 10)
+        {
+            mDbusHandler.sendPresent(false);
+        }
+    } else
+    {
+        mDbusHandler.sendPresent(true);
+        mDisplayRetry =0;
+    }
+    //mDbusHandler.sendPresent(present);
 
     // return the value
     return present;
+}
+
+
+/**
+ * @brief ROLOCcontroller::evalValidity - determine if there are enough true to
+ * consider the interface valid.
+ */
+bool ROLOCcontroller::evalValidity()
+{
+    bool test = false;
+    bool retValue = false;
+    int count = 0;
+    QQueue<bool>::iterator i;
+
+    for (i = i2cValid.begin(); i != i2cValid.end(); ++i)
+    {
+        test = *i;
+        if (test)
+        {
+            count++;
+        }
+    }
+    if (count > 1)
+    {
+        retValue = true;
+    }
+    return retValue;
 }
 
 /**
