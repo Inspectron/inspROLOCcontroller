@@ -23,7 +23,7 @@ namespace {
 
     const int    LINEFINDER_NO_DATA                         = 0xFFFF;
 
-    const int    TIMER_DATA_POLLING_PERIOD                  = 1000;          // period between data polls in ms
+    const int    TIMER_DATA_POLLING_PERIOD                  = 500;          // period between data polls in ms
     const int    TIMER_3SECONDS                             = 3000;
     const int    FREQ_SET_TIMER_INTERVAL                    = 100;
 }
@@ -82,8 +82,7 @@ void ROLOCcontroller::init()
     // init the polling timer
     mpRolocDataPollingTimer = new QTimer();
     QObject::connect(mpRolocDataPollingTimer, SIGNAL(timeout()), this, SLOT(pollROLOC()));
-    //mpRolocDataPollingTimer->setInterval(TIMER_DATA_POLLING_PERIOD);
-    mpRolocDataPollingTimer->setInterval(500);
+    mpRolocDataPollingTimer->setInterval(TIMER_DATA_POLLING_PERIOD);
 
     mpRolocDataPollingTimer->start();
 
@@ -300,7 +299,6 @@ bool ROLOCcontroller::rolocHardwarePresent()
         mDbusHandler.sendPresent(true);
         mDisplayRetry =0;
     }
-    //mDbusHandler.sendPresent(present);
 
     // return the value
     return present;
