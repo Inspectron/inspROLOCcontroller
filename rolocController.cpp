@@ -25,7 +25,10 @@ namespace {
 
     const int    TIMER_DATA_POLLING_PERIOD                  = 500;          // period between data polls in ms
     const int    TIMER_3SECONDS                             = 3000;
+    const int    I2C_READ_RETRY_PERIOD                      = 2500;
     const int    FREQ_SET_TIMER_INTERVAL                    = 100;
+    const int    DISPLAY_RETRY                              = 10;
+    const int    SERIES_QUEUE_SIZE                          = 7;
 }
 
 /**
@@ -256,7 +259,7 @@ bool ROLOCcontroller::rolocHardwarePresent()
 
     if(data != LINEFINDER_I2C_ID)
     {
-         QTimer::singleShot(2500, [&]()
+         QTimer::singleShot(I2C_READ_RETRY_PERIOD, [&]()
          {
              rolocSetVolume(ROLOC::eVOLUME_OFF);
              rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, ROLOC::eFREQ_512HZ_SONDE);
@@ -281,7 +284,7 @@ bool ROLOCcontroller::rolocHardwarePresent()
         present = true;
     }
 
-    if (i2cValid.size() == 7)
+    if (i2cValid.size() == SERIES_QUEUE_SIZE)
     {
         present = evalValidity();
         i2cValid.dequeue();
@@ -290,7 +293,7 @@ bool ROLOCcontroller::rolocHardwarePresent()
     if (!present)
     {
         mDisplayRetry++;
-        if (mDisplayRetry > 10)
+        if (mDisplayRetry > DISPLAY_RETRY)
         {
             mDbusHandler.sendPresent(false);
         }
@@ -337,8 +340,9 @@ bool ROLOCcontroller::evalValidity()
 quint16 ROLOCcontroller::rolocGetData()
 {
     // read i2c data
-    quint16 data = m_i2cBus.i2c_readWord(mI2cAddr, ROLOC::eCMD_INFO);
 
+    quint16 data = m_i2cBus.i2c_readWord(mI2cAddr, ROLOC::eCMD_INFO);
+    qDebug() << "rolocGetData:   data --> " << data;
     // set the incoming data
     mInfoPacket.set(data);
 
@@ -346,7 +350,7 @@ quint16 ROLOCcontroller::rolocGetData()
     // debug print out the packet
     qWarning().noquote() << mInfoPacket.toString();
 #endif
-
+    qDebug() << "rolocGetData:   mInfoPacket.getData() --> " << mInfoPacket.getData();
     return mInfoPacket.getData();
 }
 
