@@ -22,6 +22,8 @@ public:
     void init();
     void rolocBusy(ROLOC::eSTATE nextState);
     void sendDataReport();
+    void sendDepthReport();
+
 
 signals:
     void updateStatus(int status);
@@ -35,6 +37,8 @@ public slots:
     void setParametersHandler(ROLOC::eLINEFINDER_MODE mode, ROLOC::eLINEFINDER_FREQ freq);
     void setFrequencyHandler (ROLOC::eLINEFINDER_FREQ freq);
     void setModeHandler      (ROLOC::eLINEFINDER_MODE mode);
+    void rolocSetDepthMode(ROLOC::eLINEFINDER_MODE mode);
+
 
 private slots:
     void pollROLOC();
@@ -53,8 +57,6 @@ private:
     void rolocSetParameters(ROLOC::eLINEFINDER_MODE mode, ROLOC::eLINEFINDER_FREQ frequency);
     quint16 rolocGetData();
     void processRolocData();
-    bool evalValidity();
-
     QString getString(ROLOC::eSTATE state);
     QString getString(ROLOC::eLINEFINDER_FREQ freq);
 
@@ -78,6 +80,8 @@ private:
     ROLOC::eLINEFINDER_FREQ mPendingFreq;
     QQueue<bool>     i2cValid;
     int mDisplayRetry = 0;
+    int mBadReadCount = 0;
+    bool mPrevPresent = true;
 };
 
 

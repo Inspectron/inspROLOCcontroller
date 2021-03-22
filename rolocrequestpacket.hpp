@@ -59,6 +59,7 @@ public:
     void set(ROLOC::eLINEFINDER_MODE mode, ROLOC::eLINEFINDER_FREQ freq);
     unsigned char getData()   { return mPacket.data;   }
     unsigned char getStatus() { return mPacket.status; }
+    unsigned char getDepth()  { return mPacket.rqDepth;}
 
     QString toString();
     QString getString(ROLOC::eLINEFINDER_FREQ freq);
