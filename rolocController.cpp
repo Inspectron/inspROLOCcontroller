@@ -247,7 +247,7 @@ void ROLOCcontroller::processRolocData()
             if(mNumSamples > N_MULTI_LF_DEPTH_SAMPLE)
             {
                 QList<quint8> acceptedDepthReadings;
-                float scaleOfElimination = (float)N_MULTI_LF_DEPTH_DELTA;
+                float scaleOfElimination = static_cast<float>(N_MULTI_LF_DEPTH_DELTA);
 
                 double mean = getMean(mDepthAccumulator);
                 double stdDev = qSqrt(getVariance(mDepthAccumulator));
