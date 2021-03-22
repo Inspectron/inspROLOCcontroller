@@ -276,7 +276,7 @@ void ROLOCcontroller::processRolocData()
                 sendDataReport();
                 mNumSamples = 0;
                 mCurrentMode = ROLOC::eMODE_GET_SIGNAL_STRENGTH;
-                qDebug() << "mFrequency  mFrequency-> " << mFrequency;
+                qDebug() << "mFrequency-> " << mFrequency;
                 rolocSetParameters (mCurrentMode, mFrequency);
             }
         }
