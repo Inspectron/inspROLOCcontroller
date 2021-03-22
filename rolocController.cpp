@@ -546,9 +546,7 @@ void ROLOCcontroller::onFreqSetTimerExpired()
 void ROLOCcontroller::rolocSetDepthMode(ROLOC::eLINEFINDER_MODE mode)
 {
     Q_UNUSED(mode);
-    qint16 depthPacket = 0;
-    depthPacket = 0x0200;
-    depthPacket |= mFrequency;
+    qint16 depthPacket = 0x0200 | mFrequency;
     int status = m_i2cBus.i2c_writeWord(mI2cAddr, ROLOC::eCMD_INFO, depthPacket);
     if (status == BAD_DATA_READ)
     {
