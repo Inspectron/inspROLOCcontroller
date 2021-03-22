@@ -67,7 +67,7 @@ void RolocInfoPacket::set(unsigned short packet)
         mArrow = ROLOC::eARROW_CENTER;
     }
 
-    // ra limit the data
+    // range limit the data
     if ((mType == ROLOC_PACKET::ePKT_TYPE_SIG_STRENGTH) || (mType == ROLOC_PACKET::ePKT_TYPE_DEPTH))
     {
         if (mPacket.data > MAX_SIG_DEPTH_VAL)
