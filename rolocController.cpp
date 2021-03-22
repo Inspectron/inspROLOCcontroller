@@ -165,7 +165,8 @@ void ROLOCcontroller::pollROLOC()
              mPrevPresent = true;
            }
          }
-         else {
+         else 
+         {
             mBadReadCount = 0; // reset
             mPrevPresent = present;
          }
