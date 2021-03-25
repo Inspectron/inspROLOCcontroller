@@ -256,7 +256,6 @@ void ROLOCcontroller::processRolocData()
                 double mean = getMean(mDepthAccumulator);
                 double stdDev = qSqrt(getVariance(mDepthAccumulator));
 #if DBG_BLOCK
-                qDebug() << "*************************Distance Stats*****************";
                 qDebug() << "*************************** bit set  -> " <<  CHECK_BIT(rolocData, 1)  << "*********************";
                 qDebug() << "smaple size: " << mNumSamples;
                 qDebug() << "Mean: " << mean;
@@ -275,7 +274,7 @@ void ROLOCcontroller::processRolocData()
                 }
 
                 double finalReading = getMean(acceptedDepthReadings);
-                mROLOCdepthMeasurement = finalReading  * 0.0254;
+                mROLOCdepthMeasurement = finalReading  * INCHES_TO_METERS;
                 sendDataReport();
                 mNumSamples = 0;
                 mCurrentMode = ROLOC::eMODE_GET_SIGNAL_STRENGTH;
