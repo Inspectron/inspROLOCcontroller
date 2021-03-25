@@ -2,7 +2,7 @@
 #include <QtMath>
 #include "rolocController.hpp"
 #include "inspRolocControllerDbus.hpp"
-#define DBG_BLOCK 1
+#define DBG_BLOCK 0
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
 namespace {
@@ -31,7 +31,7 @@ namespace {
     const int    TIMER_DATA_POLLING_PERIOD                  = 333;          // period between data polls in ms
     const int    TIMER_3SECONDS                             = 3000;
     const int    FREQ_SET_TIMER_INTERVAL                    = 100;
-    const int    INCHES_TO_METERS                           = 0.0254;
+    const float    INCHES_TO_METERS                         = 0.0254;
 }
 
 /**
@@ -56,11 +56,7 @@ ROLOCcontroller::ROLOCcontroller()
 , mBadReadCount(0)
 , mPrevPresent(true)
 , mPendingFreq(mFrequency)
-{
-    qCritical() << "------------------------";
-    qCritical() << "ROLOC CONTROLLER WITH ADDRESS " << LINEFINDER_I2C_HW_BASE_ADDRESS;
-    qCritical() << "------------------------";
-}
+{}
 
 /**
  * @brief ROLOCcontroller::~ROLOCcontroller - dtor. destroy any created objects
@@ -525,7 +521,7 @@ void ROLOCcontroller::setFrequencyHandler(ROLOC::eLINEFINDER_FREQ freq)
 
 /**
  * @brief ROLOCcontroller::onFreqSetTimerExpired - timer callback when we should set the frequency to ensure
- * the ROLOC doesnt get mixed uponImageEdited
+ * the ROLOC doesnt get mixed up
  */
 void ROLOCcontroller::onFreqSetTimerExpired()
 {
