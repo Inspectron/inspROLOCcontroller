@@ -79,11 +79,10 @@ private:
     QTimer *mpFreqencySetTimer;
     ROLOC::eLINEFINDER_FREQ mPendingFreq;
     QQueue<bool>     i2cValid;
-    int mDisplayRetry = 0;
-    int mBadReadCount = 0;
-    bool mPrevPresent = true;
+    int mDisplayRetry;
+    int mBadReadCount;
+    bool mPrevPresent;
 };
-
 
 /**
  * @brief getString - convert the state to a string
