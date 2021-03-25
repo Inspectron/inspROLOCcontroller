@@ -131,7 +131,6 @@ void InspROLOCControllerDbus::rolocSetParameters(int mode, int freq)
 void InspROLOCControllerDbus::rolocSetMode(int mode)
 {
     ROLOC::eLINEFINDER_MODE rolocMode = getMode(mode);
-
     if (rolocMode == ROLOC::eMODE_INVALID)
     {
         qWarning() << "invalid mode " << mode;
