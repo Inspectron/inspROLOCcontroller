@@ -304,7 +304,6 @@ bool ROLOCcontroller::rolocHardwarePresent()
     else
     {
         present = false;
-        qDebug() << "rolocHardwarePresent:   Bad eCMD_GET_ID Data ";
 #if DBG_BLOCK
         qDebug() << "rolocHardwarePresent:   Bad eCMD_GET_ID Data ";
 #endif
