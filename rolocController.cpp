@@ -8,12 +8,12 @@
 namespace {
 
     const quint8  I2C_BUS                                   =     1;
-    const quint8  LINEFINDER_I2C_HW_BASE_ADDRESS            = 8;//(0xFA >> 1);
+    const quint8  LINEFINDER_I2C_HW_BASE_ADDRESS            = 0x08;
     const qint16  LINEFINDER_I2C_ID                         = 0x0102;
     const qint16  LINEFINDER_AUTOMATIC_GAIN                 = 0x400;
     const qint16  BAD_DATA_READ                             = -2;
     const qint64  MIN_ROLOC_SIGNAL_STRENTH                 = 0x32;
-    const qint64  MAX_BAD_READS                            = 4;
+    const qint64  MAX_BAD_READS                            = 25;
     const qint16  DEPTH_TYPE                               = 0x0200;
 
     // TODO none of these dec-> hex values are correct
@@ -139,27 +139,25 @@ void ROLOCcontroller::rolocBusy(ROLOC::eSTATE nextState)
  */
 void ROLOCcontroller::pollROLOC()
 {    
+
 #if DBG_BLOCK
     // dbg print out state changes
-
     static ROLOC::eSTATE prevState = ROLOC::eSTATE_DISCONNECTED;
 
     if (prevState != mCurrentState)
     {
-#if DBG_BLOCK
         qDebug() << "state change " << getString(prevState) << "--->" << getString(mCurrentState);
-#endif
         prevState = mCurrentState;
     }
-
 #endif
         // update hardware existence
         bool present = rolocHardwarePresent();
         if (present == false)
          {
-           if (mBadReadCount >= MAX_BAD_READS)
+           if (mBadReadCount > MAX_BAD_READS)
            {
-              mPrevPresent = present;
+              mPrevPresent = false;
+              mBadReadCount = 0;
            }
            else
            {
@@ -167,22 +165,15 @@ void ROLOCcontroller::pollROLOC()
              mPrevPresent = true;
            }
          }
-         else {
+         else
+         {
             mBadReadCount = 0; // reset
-            mPrevPresent = present;
+            mPrevPresent = true;
          }
 
-         mDbusHandler.sendPresent(mPrevPresent);
+        qDebug () << "mBadReadCount --> " << mBadReadCount << " mPrevPresent --> " << mPrevPresent;
+        mDbusHandler.sendPresent(mPrevPresent);
 
-        if (mCurrentMode == ROLOC::eMODE_GET_SIGNAL_STRENGTH)
-        {
-            mDbusHandler.sendPresent(present);
-        }
-        else
-        {
-            present = true;
-            mDbusHandler.sendPresent(present);
-        }
         if (present)
         {
             if (mCurrentState == ROLOC::eSTATE_DISCONNECTED)
