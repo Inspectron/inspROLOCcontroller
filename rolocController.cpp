@@ -13,7 +13,7 @@ namespace {
     const qint16  LINEFINDER_AUTOMATIC_GAIN                 = 0x400;
     const qint16  BAD_DATA_READ                             = -2;
     const qint64  MIN_ROLOC_SIGNAL_STRENTH                 = 0x32;
-    const qint64  MAX_BAD_READS                            = 25;
+    const qint64  MAX_BAD_READS                            = 27;
     const qint16  DEPTH_TYPE                               = 0x0200;
 
     // TODO none of these dec-> hex values are correct
@@ -170,8 +170,6 @@ void ROLOCcontroller::pollROLOC()
             mBadReadCount = 0; // reset
             mPrevPresent = true;
          }
-
-        qDebug () << "mBadReadCount --> " << mBadReadCount << " mPrevPresent --> " << mPrevPresent;
         mDbusHandler.sendPresent(mPrevPresent);
 
         if (present)
