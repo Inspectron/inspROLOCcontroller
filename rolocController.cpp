@@ -83,7 +83,7 @@ void ROLOCcontroller::init()
 
     //init the bad packet timeout
     mpDisconnectTimer = new QTimer();
-    QObject::connect(mpDisconnectTimer, &QTimer::timeout, [=]()
+    QObject::connect(mpDisconnectTimer, &QTimer::timeout, [this]()
     {
         qWarning() << "No Response from ROLOC, consider it disconnected";
         mDbusHandler.sendPresent(false);
