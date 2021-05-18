@@ -170,6 +170,7 @@ void ROLOCcontroller::pollROLOC()
             mBadReadCount = 0; // reset
             mPrevPresent = true;
          }
+        mDbusHandler.sendPresent(mPrevPresent);
 
         qDebug () << "mBadReadCount --> " << mBadReadCount << " mPrevPresent --> " << mPrevPresent;
         mDbusHandler.sendPresent(mPrevPresent);
