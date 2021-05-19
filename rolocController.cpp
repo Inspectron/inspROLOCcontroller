@@ -157,7 +157,6 @@ void ROLOCcontroller::pollROLOC()
            if (mBadReadCount > MAX_BAD_READS)
            {
               mPrevPresent = false;
-              mBadReadCount = 0;
            }
            else
            {

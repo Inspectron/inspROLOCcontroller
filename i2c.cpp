@@ -72,7 +72,7 @@ __s32 i2c::i2c_smbus_access(int file, char read_write, __u8 command,
     err = ioctl(file, I2C_SMBUS, &args);
     if (err == -1)
     {
-        perror("i2c_smbus_access ioctl");
+        //perror("i2c_smbus_access ioctl");
         err = -errno;
     }
     return err;
