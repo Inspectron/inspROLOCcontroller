@@ -52,10 +52,10 @@ ROLOCcontroller::ROLOCcontroller()
 , mpRolocDataPollingTimer(NULL)
 , mCurrentState(ROLOC::eSTATE_DISCONNECTED)
 , mpFreqencySetTimer(NULL)
+, mPendingFreq(mFrequency)
 , mDisplayRetry(0)
 , mBadReadCount(0)
-, mPrevPresent(true)
-, mPendingFreq(mFrequency)
+, mPrevPresent(false)
 {}
 
 /**

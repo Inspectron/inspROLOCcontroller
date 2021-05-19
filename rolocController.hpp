@@ -78,7 +78,6 @@ private:
     ROLOC::eSTATE mCurrentState;
     QTimer *mpFreqencySetTimer;
     ROLOC::eLINEFINDER_FREQ mPendingFreq;
-    QQueue<bool>     i2cValid;
     int mDisplayRetry;
     int mBadReadCount;
     bool mPrevPresent;
