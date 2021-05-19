@@ -200,7 +200,6 @@ void ROLOCcontroller::pollROLOC()
         // do nothing.
         break;
     }
-
 }
 
 /**
