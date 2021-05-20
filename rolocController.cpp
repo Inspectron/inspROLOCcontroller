@@ -2,7 +2,7 @@
 #include <QtMath>
 #include "rolocController.hpp"
 #include "inspRolocControllerDbus.hpp"
-#define DBG_BLOCK 1
+#define DBG_BLOCK 0
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
 namespace {
