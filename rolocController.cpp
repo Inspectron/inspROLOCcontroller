@@ -12,8 +12,8 @@ namespace {
     const qint16  LINEFINDER_I2C_ID                         = 0x0102;
     const qint16  LINEFINDER_AUTOMATIC_GAIN                 = 0x400;
     const qint16  BAD_DATA_READ                             = -2;
-    const qint64  MIN_ROLOC_SIGNAL_STRENTH                 = 0x32;
-    const qint64  MAX_BAD_READS                            = 27;
+    const qint64  MIN_ROLOC_SIGNAL_STRENTH                 = 0x16;
+    const qint64  MAX_BAD_READS                            = 30;
     const qint16  DEPTH_TYPE                               = 0x0200;
 
     // TODO none of these dec-> hex values are correct
@@ -28,7 +28,7 @@ namespace {
 
     const int    LINEFINDER_NO_DATA                         = 0xFFFF;
 
-    const int    TIMER_DATA_POLLING_PERIOD                  = 333;          // period between data polls in ms
+    const int    TIMER_DATA_POLLING_PERIOD                  = 500;          // period between data polls in ms
     const int    TIMER_3SECONDS                             = 3000;
     const int    FREQ_SET_TIMER_INTERVAL                    = 100;
     const float    INCHES_TO_METERS                         = 0.0254;
@@ -127,6 +127,7 @@ void ROLOCcontroller::initROLOC()
 void ROLOCcontroller::rolocBusy(ROLOC::eSTATE nextState)
 {       
     mCurrentState = ROLOC::eSTATE_BUSY;
+
     QTimer::singleShot(TIMER_3SECONDS, [&, nextState]()
     {
 #if DBG_BLOCK
@@ -145,6 +146,7 @@ void ROLOCcontroller::pollROLOC()
 
 #if DBG_BLOCK
     // dbg print out state changes
+    /*
     static ROLOC::eSTATE prevState = ROLOC::eSTATE_DISCONNECTED;
 
     if (prevState != mCurrentState)
@@ -152,6 +154,7 @@ void ROLOCcontroller::pollROLOC()
         qDebug() << "state change " << getString(prevState) << "--->" << getString(mCurrentState);
         prevState = mCurrentState;
     }
+    */
 #endif
         // update hardware existence
         bool present = rolocHardwarePresent();
@@ -181,10 +184,11 @@ void ROLOCcontroller::pollROLOC()
             mDbusHandler.sendPresent(mPrevPresent);
         }
 
-        if (present)
+        if (mPrevPresent)
         {
             if (mCurrentState == ROLOC::eSTATE_DISCONNECTED)
             {
+                qDebug() << " Testing for re init ";
                 rolocBusy(ROLOC::eSTATE_INITIALIZING);
             }
         }
@@ -234,7 +238,7 @@ void ROLOCcontroller::processRolocData()
 #endif
             // clear the depth measurements
             mDepthAccumulator.clear();
-            sendDataReport();
+            sendDataReport(false);
         }
         else if (mCurrentMode == ROLOC::eMODE_GET_DEPTH_MEASUREMENT)
         {
@@ -253,6 +257,7 @@ void ROLOCcontroller::processRolocData()
                 qDebug() << "smaple size: " << mNumSamples;
                 qDebug() << "Mean: " << mean;
                 qDebug() << "Standard Dev.: " << stdDev;
+                qDebug() << "******************************************************************************";
 #endif
                 for(quint8 i = 0; i < mDepthAccumulator.count(); i++)
                 {
@@ -268,7 +273,7 @@ void ROLOCcontroller::processRolocData()
 
                 double finalReading = getMean(acceptedDepthReadings);
                 mROLOCdepthMeasurement = finalReading  * INCHES_TO_METERS;
-                sendDataReport();
+                sendDataReport(true);
                 mNumSamples = 0;
                 mCurrentMode = ROLOC::eMODE_GET_SIGNAL_STRENGTH;
                 rolocSetParameters (mCurrentMode, mFrequency);
@@ -323,10 +328,9 @@ quint16 ROLOCcontroller::rolocGetData()
     {
         mInfoPacket.set(data);
 #if DBG_BLOCK
-        qDebug() << "rolocGetData:*** *** Good Good Good *** ***";
         // debug print out the packet
         qWarning().noquote() << mInfoPacket.toString();
-        qWarning().noquote() << "rolocGetData:  The type is ---> " << mInfoPacket.getType();
+        qWarning() << "*** *** mFrequency" << mFrequency << "  *** ***";
 #endif
         retValue =    mInfoPacket.getData();
     }
@@ -351,15 +355,16 @@ void ROLOCcontroller::rolocSetParameters(ROLOC::eLINEFINDER_MODE mode, ROLOC::eL
     // add in the mode & frequency
     data |= (mode << 8);  // todo:: double check that the shift operation provides the correct results!
     data |= frequency;
-
     int status = m_i2cBus.i2c_writeWord(mI2cAddr, ROLOC::eCMD_INFO, data);
-
     if (status != 0)
     {
         qWarning() << "i2c error (" << status << ")" << strerror(errno);
     }
     else
     {
+#if DBG_BLOCK
+        qDebug() << "frequency information frequency -->  " << frequency;
+#endif
         // successful transaction. update the member vars
         mFrequency = frequency;
         mCurrentMode = mode;
@@ -441,10 +446,17 @@ double ROLOCcontroller::getVariance(QList<quint8> values)
  * @brief ROLOCcontroller::sendDataReport -- send data report
  *        over dbus
  */
-void ROLOCcontroller::sendDataReport()
+void ROLOCcontroller::sendDataReport(bool isROLOC)
 {
-    if (mROLOCsignalStrenth > MIN_ROLOC_SIGNAL_STRENTH)
-    {
+    Q_UNUSED(isROLOC);
+
+#if DBG_BLOCK
+        qDebug() << "**********************************************************";
+        qDebug() << "mROLOCdepthMeasurement ---> " << mROLOCdepthMeasurement;
+        qDebug() << "mFrequency ---> " << mFrequency;
+        qDebug() << "mCurrentMode ---> " << mCurrentMode;
+        qDebug() << "**********************************************************";
+#endif
         mDbusHandler.sendDataReport(
                 mCurrentMode,
                 mFrequency,
@@ -452,7 +464,7 @@ void ROLOCcontroller::sendDataReport()
                 mROLOCdepthMeasurement,
                 mInfoPacket.getArrow(),
                 (mCurrentState != ROLOC::eSTATE_DISCONNECTED)); // TODO switch the dbus signal to an enum
-    }
+//    }
 }
 
 
@@ -481,7 +493,7 @@ void ROLOCcontroller::sendDepthReport()
  */
 void ROLOCcontroller::getDataReportHandler()
 {
-    sendDataReport();
+    sendDataReport(false);
 }
 
 /**
@@ -492,8 +504,6 @@ void ROLOCcontroller::setVolumeHandler(ROLOC::eLINEFINDER_VOLUME vol)
     // change the roloc volume
     rolocSetVolume(vol);
 }
-
-
 
 /**
  * @brief ROLOCcontroller::setMode - slot callback to set the
@@ -512,6 +522,7 @@ void ROLOCcontroller::setFrequencyHandler(ROLOC::eLINEFINDER_FREQ freq)
 {
     // set the pending, and star the hysteresis timer
     mPendingFreq = freq;
+    qDebug() << "mFrequency ---> " << mFrequency;
     mpFreqencySetTimer->start();
 }
 
@@ -542,7 +553,7 @@ void ROLOCcontroller::rolocSetDepthMode(ROLOC::eLINEFINDER_MODE mode)
     if (status == BAD_DATA_READ)
     {
 #if DBG_BLOCK
-    qDebug() << "write status --> " << status;
+        qDebug() << "i2c_writeWord status --> " << status;
 #endif
     }
     mCurrentMode = ROLOC::eMODE_GET_DEPTH_MEASUREMENT;
@@ -552,6 +563,7 @@ void ROLOCcontroller::rolocSetDepthMode(ROLOC::eLINEFINDER_MODE mode)
 /**
  * @brief ROLOCcontroller::setModeHandler - set the mode of the roloc
  * @param mode - mode enum
+
  */
 void ROLOCcontroller::setModeHandler(ROLOC::eLINEFINDER_MODE mode)
 {
