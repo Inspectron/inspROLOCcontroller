@@ -75,10 +75,12 @@ private:
 
     RolocInfoPacket &mInfoPacket;
     QTimer *mpRolocDataPollingTimer;
-    QTimer *mpDisconnectTimer;
-    QTimer *mpFreqencySetTimer;
     ROLOC::eSTATE mCurrentState;
+    QTimer *mpFreqencySetTimer;
     ROLOC::eLINEFINDER_FREQ mPendingFreq;
+    int mDisplayRetry;
+    int mBadReadCount;
+    bool mPrevPresent;
 };
 
 /**
