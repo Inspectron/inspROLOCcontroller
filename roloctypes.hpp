@@ -35,10 +35,10 @@ namespace ROLOC
     enum eLINEFINDER_FREQ
     {
         eFREQ_INVALID                      = -1,
-        eFREQ_512HZ_SONDE                  = 0x0000, // (0 << 11);
-        eFREQ_640HZ_SONDE                  = 0x0800, // (1 << 11);
-        eFREQ_50HZ_PASSIVE                 = 0x1000, // (2 << 11);
-        eFREQ_60HZ_PASSIVE                 = 0x1800, // (3 << 11);
+        eFREQ_50HZ_PASSIVE                 = 0x0000, // (0 << 11);
+        eFREQ_60HZ_PASSIVE                 = 0x0800, // (1 << 11);
+        eFREQ_512HZ_SONDE                  = 0x1000, // (2 << 11);
+        eFREQ_640HZ_SONDE                  = 0x1800, // (3 << 11);
         eFREQ_32_5KHZ_ACTIVE               = 0x4000, // (8 << 11);
         eFREQ_32_5KHZ_PASSIVE              = 0x4800, // (9 << 11);
     };
