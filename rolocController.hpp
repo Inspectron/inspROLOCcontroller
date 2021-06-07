@@ -57,6 +57,9 @@ private:
     void rolocSetParameters(ROLOC::eLINEFINDER_MODE mode, ROLOC::eLINEFINDER_FREQ frequency);
     quint16 rolocGetData();
     void processRolocData();
+
+    void resetRoloc();
+
     QString getString(ROLOC::eSTATE state);
     QString getString(ROLOC::eLINEFINDER_FREQ freq);
 
@@ -75,13 +78,10 @@ private:
 
     RolocInfoPacket &mInfoPacket;
     QTimer *mpRolocDataPollingTimer;
-    ROLOC::eSTATE mCurrentState;
     QTimer *mpFreqencySetTimer;
+    QTimer *mpDisconnectTimer;
+    ROLOC::eSTATE mCurrentState;
     ROLOC::eLINEFINDER_FREQ mPendingFreq;
-    QQueue<bool>     i2cValid;
-    int mDisplayRetry;
-    int mBadReadCount;
-    bool mPrevPresent;
 };
 
 /**

@@ -88,7 +88,7 @@ void InspROLOCControllerDbus::sendDataReport(
 void InspROLOCControllerDbus::sendPresent(bool isPresent)
 {
 #if DBG_BLOCK
-    qDebug("DBus sending report");
+    qDebug() << "DBus sending report:" << isPresent;
 #endif
     emit rolocUpdatePresent(isPresent);
 }
@@ -162,7 +162,6 @@ void InspROLOCControllerDbus::rolocSetFrequency(int freq)
 // dbus methods UI -> roloc
 void InspROLOCControllerDbus::rolocGetDataReport()
 {
-    qDebug("DBus getDataReport");
     emit getDataReportHandler();
 }
 
