@@ -37,10 +37,7 @@ namespace {
     const int    POWER_RESET_WAIT_TIME                      = 250 * 1000; //250ms
     const int    ROLOC_5V_GPIO_NUMBER                       = 229;
 
-    QVector<GPIO_CTRL::tGPIO> POWER_GPIO =
-    {
-        { ROLOC_5V_GPIO_NUMBER, GPIO_CTRL::OUTPUT, GPIO_CTRL::EDGE_BOTH, false, GPIO_CTRL::HIGH }
-    };
+    GPIO_CTRL::tGPIO POWER_GPIO = { ROLOC_5V_GPIO_NUMBER, GPIO_CTRL::OUTPUT, GPIO_CTRL::EDGE_BOTH, false, GPIO_CTRL::HIGH };
 }
 
 /**
@@ -64,7 +61,7 @@ ROLOCcontroller::ROLOCcontroller()
 , mCurrentState(ROLOC::eSTATE_DISCONNECTED)
 , mPendingFreq(mFrequency)
 {
-    gpio::configureIO(&POWER_GPIO);
+    gpio::configureIO(POWER_GPIO);
 }
 
 /**
@@ -96,7 +93,7 @@ void ROLOCcontroller::init()
         qWarning() << "No Response from ROLOC, consider it disconnected";
         mDbusHandler.sendPresent(false);
         //verify that the output state is for sure high if were done with the roloc
-        gpio::setOutputState(POWER_GPIO[0].gpio, GPIO_CTRL::HIGH);
+        gpio::setOutputState(POWER_GPIO.gpio, GPIO_CTRL::HIGH);
     });
     mpDisconnectTimer->setSingleShot(true);
     mpDisconnectTimer->setInterval(ROLOC_BAD_PACKET_TIMEOUT_VALUE);
@@ -549,7 +546,7 @@ void ROLOCcontroller::setModeHandler(ROLOC::eLINEFINDER_MODE mode)
 
 void ROLOCcontroller::resetRoloc()
 {
-    gpio::setOutputState(POWER_GPIO[0].gpio, GPIO_CTRL::LOW);
+    gpio::setOutputState(POWER_GPIO.gpio, GPIO_CTRL::LOW);
     usleep(POWER_RESET_WAIT_TIME);
-    gpio::setOutputState(POWER_GPIO[0].gpio, GPIO_CTRL::HIGH);
+    gpio::setOutputState(POWER_GPIO.gpio, GPIO_CTRL::HIGH);
 }
