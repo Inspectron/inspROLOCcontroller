@@ -2,19 +2,19 @@
 #include <QtMath>
 #include "rolocController.hpp"
 #include "inspRolocControllerDbus.hpp"
+#include "gpio.hpp"
 #define DBG_BLOCK 0
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 
 namespace {
-
-    const quint8  I2C_BUS                                   =     1;
+    const quint8  I2C_BUS                                   = 1;
     const quint8  LINEFINDER_I2C_HW_BASE_ADDRESS            = 0x08;
     const qint16  LINEFINDER_I2C_ID                         = 0x0102;
     const qint16  LINEFINDER_AUTOMATIC_GAIN                 = 0x400;
     const qint16  BAD_DATA_READ                             = -2;
-    const qint64  MIN_ROLOC_SIGNAL_STRENTH                 = 0x16;
-    const qint64  MAX_BAD_READS                            = 30;
-    const qint16  DEPTH_TYPE                               = 0x0200;
+    const qint64  MIN_ROLOC_SIGNAL_STRENTH                  = 0x16;
+    const qint64  MAX_BAD_READS                             = 30;
+    const qint16  DEPTH_TYPE                                = 0x0200;
 
     // TODO none of these dec-> hex values are correct
     const int    LINEFINDER_DEPTH_OR_CAL_TEST_DATA_RETURNED = 4;  // 0x0010;
@@ -28,10 +28,16 @@ namespace {
 
     const int    LINEFINDER_NO_DATA                         = 0xFFFF;
 
-    const int    TIMER_DATA_POLLING_PERIOD                  = 500;          // period between data polls in ms
+    const int    TIMER_DATA_POLLING_PERIOD                  = 500; // period between data polls in ms
     const int    TIMER_3SECONDS                             = 3000;
     const int    FREQ_SET_TIMER_INTERVAL                    = 100;
-    const float    INCHES_TO_METERS                         = 0.0254;
+    const float  INCHES_TO_METERS                           = 0.0254;
+
+    const int    ROLOC_BAD_PACKET_TIMEOUT_VALUE             = 3000;//3sec
+    const int    POWER_RESET_WAIT_TIME                      = 250 * 1000; //250ms
+    const int    ROLOC_5V_GPIO_NUMBER                       = 229;
+
+    GPIO_CTRL::tGPIO POWER_GPIO = { ROLOC_5V_GPIO_NUMBER, GPIO_CTRL::OUTPUT, GPIO_CTRL::EDGE_BOTH, false, GPIO_CTRL::HIGH };
 }
 
 /**
@@ -50,13 +56,13 @@ ROLOCcontroller::ROLOCcontroller()
 , mDepthAccumulator()
 , mInfoPacket(*new RolocInfoPacket())
 , mpRolocDataPollingTimer(NULL)
-, mCurrentState(ROLOC::eSTATE_DISCONNECTED)
 , mpFreqencySetTimer(NULL)
+, mpDisconnectTimer(NULL)
+, mCurrentState(ROLOC::eSTATE_DISCONNECTED)
 , mPendingFreq(mFrequency)
-, mDisplayRetry(0)
-, mBadReadCount(0)
-, mPrevPresent(false)
-{}
+{
+    gpio::configureIO(POWER_GPIO);
+}
 
 /**
  * @brief ROLOCcontroller::~ROLOCcontroller - dtor. destroy any created objects
@@ -66,6 +72,7 @@ ROLOCcontroller::~ROLOCcontroller()
     delete &mInfoPacket;
     delete mpRolocDataPollingTimer;
     delete mpFreqencySetTimer;
+    delete mpDisconnectTimer;
 }
 
 /**
@@ -78,6 +85,18 @@ void ROLOCcontroller::init()
 
     // init dbus
     mDbusHandler.init();
+
+    //init the bad packet timeout
+    mpDisconnectTimer = new QTimer();
+    QObject::connect(mpDisconnectTimer, &QTimer::timeout, [this]()
+    {
+        qWarning() << "No Response from ROLOC, consider it disconnected";
+        mDbusHandler.sendPresent(false);
+        //verify that the output state is for sure high if were done with the roloc
+        gpio::setOutputState(POWER_GPIO.gpio, GPIO_CTRL::HIGH);
+    });
+    mpDisconnectTimer->setSingleShot(true);
+    mpDisconnectTimer->setInterval(ROLOC_BAD_PACKET_TIMEOUT_VALUE);
 
     // init the freq change timer
     mpFreqencySetTimer = new QTimer();
@@ -103,10 +122,7 @@ void ROLOCcontroller::init()
     QObject::connect(&mDbusHandler,   SIGNAL(requestSetMode(ROLOC::eLINEFINDER_MODE)), this, SLOT(setModeHandler(ROLOC::eLINEFINDER_MODE))      );
 
     mDbusHandler.sendPresent(false);
-
 }
-
-
 
 /**
  * @brief ROLOCcontroller::initROLOC - init the roloc upon plugging in
@@ -125,7 +141,7 @@ void ROLOCcontroller::initROLOC()
  * @brief ROLOCcontroller::rolocBusy - Start a mode change, when the timer is complete it will transition to the next state
  */
 void ROLOCcontroller::rolocBusy(ROLOC::eSTATE nextState)
-{       
+{
     mCurrentState = ROLOC::eSTATE_BUSY;
 
     QTimer::singleShot(TIMER_3SECONDS, [&, nextState]()
@@ -135,68 +151,43 @@ void ROLOCcontroller::rolocBusy(ROLOC::eSTATE nextState)
 #endif
         mCurrentState = nextState;
     });
-
 }
 
 /**
  * @brief ROLOCcontroller::pollROLOC - function to poll the roloc
  */
 void ROLOCcontroller::pollROLOC()
-{    
+{
+    // update hardware existence
+    bool present = rolocHardwarePresent();
 
-#if DBG_BLOCK
-    // dbg print out state changes
-    /*
-    static ROLOC::eSTATE prevState = ROLOC::eSTATE_DISCONNECTED;
-
-    if (prevState != mCurrentState)
+    if((!present) && (mCurrentState != ROLOC::eSTATE_DISCONNECTED))
     {
-        qDebug() << "state change " << getString(prevState) << "--->" << getString(mCurrentState);
-        prevState = mCurrentState;
+        qWarning() << "ROLOC is experiencing some difficulties";
+        //the roloc is all of a sudden not responding while we were in some
+        //form of connected state. set it to disconected and start the timer
+        mCurrentState = ROLOC::eSTATE_DISCONNECTED;
+        mpDisconnectTimer->start();
+        //try to reset the ROLOC to see if that fixes it
+        resetRoloc();
     }
-    */
-#endif
-        // update hardware existence
-        bool present = rolocHardwarePresent();
-        if ((!present) && (!mPrevPresent))
+    else if((present) && (mCurrentState == ROLOC::eSTATE_DISCONNECTED))
+    {
+        if(mpDisconnectTimer->isActive())
         {
-            mDbusHandler.sendPresent(mPrevPresent);
+            //it the timers already going then its been initialized already,
+            //just set it back to the operating state
+            mCurrentState = ROLOC::eSTATE_OPERATING;
         }
         else
         {
-            if (present == false)
-            {
-                if (mBadReadCount > MAX_BAD_READS)
-                {
-                    mPrevPresent = false;
-                }
-                else
-                {
-                    mBadReadCount++;
-                    mPrevPresent = true;
-                }
-            }
-            else
-            {
-                mBadReadCount = 0; // reset
-                mPrevPresent = true;
-            }
-            mDbusHandler.sendPresent(mPrevPresent);
+            //the roloc is freshly present since the timer wasnt started
+            //so set it to its initializing state
+            rolocBusy(ROLOC::eSTATE_INITIALIZING);
+            mDbusHandler.sendPresent(true);
         }
-
-        if (mPrevPresent)
-        {
-            if (mCurrentState == ROLOC::eSTATE_DISCONNECTED)
-            {
-                qDebug() << " Testing for re init ";
-                rolocBusy(ROLOC::eSTATE_INITIALIZING);
-            }
-        }
-        else
-        {
-            // roloc is disconnected
-            mCurrentState = ROLOC::eSTATE_DISCONNECTED;
-        }
+        mpDisconnectTimer->stop();
+    }
 
     switch (mCurrentState)
     {
@@ -299,16 +290,10 @@ bool ROLOCcontroller::rolocHardwarePresent()
     if(data == LINEFINDER_I2C_ID)
     {
         present = true;
-#if DBG_BLOCK
-        qDebug() << "rolocHardwarePresent:   Good eCMD_GET_ID Data ";
-#endif
     }
     else
     {
         present = false;
-#if DBG_BLOCK
-        qDebug() << "rolocHardwarePresent:   Bad eCMD_GET_ID Data ";
-#endif
     }
     return present;
 }
@@ -330,7 +315,6 @@ quint16 ROLOCcontroller::rolocGetData()
 #if DBG_BLOCK
         // debug print out the packet
         qWarning().noquote() << mInfoPacket.toString();
-        qWarning() << "*** *** mFrequency" << mFrequency << "  *** ***";
 #endif
         retValue =    mInfoPacket.getData();
     }
@@ -362,23 +346,10 @@ void ROLOCcontroller::rolocSetParameters(ROLOC::eLINEFINDER_MODE mode, ROLOC::eL
     }
     else
     {
-#if DBG_BLOCK
-        qDebug() << "frequency information frequency -->  " << frequency;
-#endif
         // successful transaction. update the member vars
         mFrequency = frequency;
         mCurrentMode = mode;
     }
-
-#if 0
-    // TODO figure out what this is doing
-    // TODO trigger the "busy" state if the mode changed
-    if(mode != mCurrentMode || mEnabled == false)
-    {
-        mCurrentMode = mode;
-        startModeChange();
-    }
-#endif
 
     // update dbus
     mDbusHandler.sendParameters(mCurrentMode, mFrequency);
@@ -457,16 +428,14 @@ void ROLOCcontroller::sendDataReport(bool isROLOC)
         qDebug() << "mCurrentMode ---> " << mCurrentMode;
         qDebug() << "**********************************************************";
 #endif
-        mDbusHandler.sendDataReport(
+    mDbusHandler.sendDataReport(
                 mCurrentMode,
                 mFrequency,
                 mROLOCsignalStrenth,
                 mROLOCdepthMeasurement,
                 mInfoPacket.getArrow(),
                 (mCurrentState != ROLOC::eSTATE_DISCONNECTED)); // TODO switch the dbus signal to an enum
-//    }
 }
-
 
 /**
  * @brief ROLOCcontroller::sendDepthReport -- send depth report
@@ -486,7 +455,6 @@ void ROLOCcontroller::sendDepthReport()
 // ===========================================
 // DBus to roloc handler functions
 // ===========================================
-
 /**
  * @brief ROLOCcontroller::getDataReportHandler -- request data
  *        report
@@ -522,7 +490,7 @@ void ROLOCcontroller::setFrequencyHandler(ROLOC::eLINEFINDER_FREQ freq)
 {
     // set the pending, and star the hysteresis timer
     mPendingFreq = freq;
-    qDebug() << "mFrequency ---> " << mFrequency;
+    qDebug() << "Setting ROLOC Frequency to:" << mFrequency;
     mpFreqencySetTimer->start();
 }
 
@@ -559,7 +527,6 @@ void ROLOCcontroller::rolocSetDepthMode(ROLOC::eLINEFINDER_MODE mode)
     mCurrentMode = ROLOC::eMODE_GET_DEPTH_MEASUREMENT;
 }
 
-
 /**
  * @brief ROLOCcontroller::setModeHandler - set the mode of the roloc
  * @param mode - mode enum
@@ -575,4 +542,11 @@ void ROLOCcontroller::setModeHandler(ROLOC::eLINEFINDER_MODE mode)
     {
         rolocSetParameters(mode, mFrequency);
     }
+}
+
+void ROLOCcontroller::resetRoloc()
+{
+    gpio::setOutputState(POWER_GPIO.gpio, GPIO_CTRL::LOW);
+    usleep(POWER_RESET_WAIT_TIME);
+    gpio::setOutputState(POWER_GPIO.gpio, GPIO_CTRL::HIGH);
 }

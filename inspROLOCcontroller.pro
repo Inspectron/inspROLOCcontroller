@@ -23,14 +23,16 @@ HEADERS += \
     include/inspcore.hpp \
     roloctypes.hpp \
     rolocinfopacket.hpp \
-    rolocrequestpacket.hpp
+    rolocrequestpacket.hpp \
+    gpio.hpp
 
 SOURCES += main.cpp \
     inspRolocControllerDbus.cpp \
     rolocController.cpp \
     i2c.cpp \
     rolocinfopacket.cpp \
-    rolocrequestpacket.cpp
+    rolocrequestpacket.cpp \
+    gpio.cpp
 
 LIBS += -ludev
 unix {
