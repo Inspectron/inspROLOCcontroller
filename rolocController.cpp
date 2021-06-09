@@ -51,7 +51,7 @@ ROLOCcontroller::ROLOCcontroller()
 , mROLOCsignalStrenth(0)
 , mROLOCdepthMeasurement(0.0)
 , mCurrVolume(ROLOC::eVOLUME_OFF)
-, mFrequency(ROLOC::eFREQ_512HZ_SONDE)
+, mFrequency(ROLOC::eFREQ_50HZ_PASSIVE)
 , mNumSamples(0)
 , mDepthAccumulator()
 , mInfoPacket(*new RolocInfoPacket())
@@ -131,7 +131,7 @@ void ROLOCcontroller::initROLOC()
 {
     qDebug() << "ROLOC plugged in. set volume and freq to defaults";
     rolocSetVolume(ROLOC::eVOLUME_OFF);
-    rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, ROLOC::eFREQ_512HZ_SONDE);
+    rolocSetParameters(ROLOC::eMODE_GET_SIGNAL_STRENGTH, ROLOC::eFREQ_50HZ_PASSIVE);
 
     // move to the next state
     rolocBusy(ROLOC::eSTATE_OPERATING);
